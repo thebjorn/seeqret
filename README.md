@@ -36,10 +36,17 @@ You can make the following assumptions:
 2. the secrets should not exist in plain-text when they are not used (e.g. a
    database password is only _used_ when logging into the database - it shouldn't exist in memory outside of this process[^3]).
 3. a subset of secrets needs to be **shared with new developers** in a secure way.
-4. the secrets should be easy to update[^1].
-5. it should be possible to backup the secrets.
-6. _(bonus)_: the secrets should be easy to rotate[^2].
-7. _(bonus)_: the secrets should be auditable[^4].
+4. there should be a command line utility (`secrets`) to
+   - `secrets set <key> <value>`: set a secret
+   - `secrets get <key>`: get a secret
+   - `secrets export <user> <keys..>` export a subset of the secrets for transmission (e.g. by email) to a new developer
+   - `secrets import <keys..>` import keys received by e.g. email
+5. and a library/API to
+   - `secrets.get(key)`: get a secret (this should be a fast O(1) operation)
+5. the secrets should be easy to update[^1].
+6. it should be possible to backup the secrets.
+7. _(bonus)_: the secrets should be easy to rotate[^2].
+8. _(bonus)_: the secrets should be auditable[^4].
 
 # Code
 The code in the `filecrypt.py` file is from [Asymetric Encryption](https://www.youtube.com/watch?v=bd5nsMscPo0) which is well worth watching...
