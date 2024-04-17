@@ -43,6 +43,8 @@ def decrypt_file(file_name):
     with open(file_name + '.dec', 'wb') as f:
         f.write(decrypted_data)
 
+    return decrypted_data
+
 
 def encrypt_file_symetric(file_name, suffix='.enc'):
     with open('symetric.key', 'rb') as f:
@@ -73,10 +75,13 @@ def decrypt_file_symetric(file_name):
     with open(file_name + '.dec', 'wb') as f:
         f.write(decrypted_data)
 
+    return decrypted_data
+
 
 if __name__ == '__main__':
+    plaintext = open('test.txt', 'rb').read()
     # generate_keys()
     encrypt_file('test.txt', '.asymetric')
-    decrypt_file('test.txt.asymetric')
+    assert plaintext == decrypt_file('test.txt.asymetric')
     encrypt_file_symetric('test.txt', '.symetric')
-    decrypt_file_symetric('test.txt.symetric')
+    assert plaintext == decrypt_file_symetric('test.txt.symetric')

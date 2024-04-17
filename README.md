@@ -44,7 +44,7 @@ You can make the following assumptions:
 # Code
 The code in the `filecrypt.py` file is from [Asymetric Encryption](https://www.youtube.com/watch?v=bd5nsMscPo0) which is well worth watching...
 
-
+The code in `pgp_filecrypt.py` contains the code needed to do pgp encryption/decryption (here you need to set the trust level when importing keys to the people you want to send encrypted messages to).
 
 
 [^1]: Updating means manually changing the secret (both in the storage and the service it protects), e.g. when a password expires/is compromised/a devloper leaves/etc.
