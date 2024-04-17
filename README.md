@@ -48,6 +48,17 @@ You can make the following assumptions:
 7. _(bonus)_: the secrets should be easy to rotate[^2].
 8. _(bonus)_: the secrets should be auditable[^4].
 
+# Use cases
+
+1. **Starting from scratch:** How do you set up the secrets system?
+2. **Inviting users:** How do you invite users and how do you communicate the secrets to them?
+3. **Adding a secret:** How do you communicate a new secret to the users?
+4. **Updating a secret:** How do you communicate an update to a secret?
+5. **New user:** How does a new user get access to the secrets?
+6. **Backup:** How do you backup the secrets and what is needed to restore the backup?
+7. **Developer leaves:** How do you revoke access to the secrets for a developer that leaves?
+
+
 # Code
 The code in the `filecrypt.py` file is from [Asymetric Encryption](https://www.youtube.com/watch?v=bd5nsMscPo0) which is well worth watching...
 
