@@ -1,5 +1,22 @@
 # Safely transferring code secrets
 
+
+<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
+
+<!-- code_chunk_output -->
+
+- [Safely transferring code secrets](#safely-transferring-code-secrets)
+  - [Introduction](#introduction)
+    - [Prior art...](#prior-art)
+  - [Assumptions](#assumptions)
+  - [Minimum Requirements](#minimum-requirements)
+- [Use cases](#use-cases)
+- [Code](#code)
+
+<!-- /code_chunk_output -->
+
+
+
 ## Introduction
 
 How do you communicate the set of secrets (passwords, API keys, etc.) that your code needs to run? You can't just write them in the code, because that would expose them to anyone who can read the code. You can't just send them in an email, because that would expose them to anyone who can read your email. You can't just write them on a sticky note, because that would expose them to anyone who can read your sticky note.
