@@ -13,7 +13,8 @@ setuptools.setup(
     url='https://github/thebjorn/secrets.git',
     install_requires=[
         'rsa',
-        'cryptography'
+        'cryptography',
+        'Click',
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
@@ -22,7 +23,13 @@ setuptools.setup(
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
     ],
+    entry_points={
+        'console_scripts': [
+            'seeqret=seeqret.main:cli',
+        ],
+    },
     long_description=open('README.md').read(),
     packages=setuptools.find_packages(),
+    include_package_data=True,
     zip_safe=False,
 )
