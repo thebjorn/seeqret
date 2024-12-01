@@ -9,6 +9,7 @@ def cli():
 
 
 @cli.command()
+@click.option('--dir', default='.', help='Directory to initialize seeqret in')
 def init():
     print('Initializing a new key pair')
     seeqret_init.secrets_init()
