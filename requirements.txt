@@ -3,3 +3,4 @@ cryptography
 click
 pytest
 pytest-cov
+mkdocs
