@@ -1,9 +1,18 @@
 import click
 
+from . import seeqret_init
+
+
 @click.group()
 def cli():
-    print('Hello, world!')
-    
+    pass
+
+
+@cli.command()
+def init():
+    print('Initializing a new key pair')
+    seeqret_init.secrets_init()
+
 
 @cli.command()
 def generate():
