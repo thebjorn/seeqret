@@ -2,3 +2,4 @@ rsa
 cryptography
 click
 pytest
+pytest-cov
