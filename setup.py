@@ -7,10 +7,12 @@ import setuptools
 version = '0.0.1'
 
 setuptools.setup(
-    name='thebjorn-secrets',
+    name='seeqret',
+    description='Safely transferring code secrets',
+    keywords='secrets, gpg, pgp',
     version=version,
     author='Bjorn',
-    url='https://github/thebjorn/secrets.git',
+    url='https://github/thebjorn/seeqret.git',
     install_requires=[
         'rsa',
         'cryptography',
@@ -29,6 +31,7 @@ setuptools.setup(
         ],
     },
     long_description=open('README.md').read(),
+    long_description_content_type='text/markdown',
     packages=setuptools.find_packages(),
     include_package_data=True,
     zip_safe=False,

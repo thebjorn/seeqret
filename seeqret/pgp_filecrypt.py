@@ -7,7 +7,7 @@ def generate_keys(gpg, user):
     # gpg = gnupg.GPG(gnupghome=f'{user}/.gnupg')
     key = gpg.gen_key(
         gpg.gen_key_input(
-            key_type="RSA", 
+            key_type="RSA",
             key_length=4096,
             name_email=f'{user}@example.com',
             passphrase=PASSPHRASE
@@ -18,7 +18,7 @@ def generate_keys(gpg, user):
         print(pubkey.replace('\r', ''), file=f)
 
     with open(f'{user}/.gnupg/gpg-private.asc', 'w') as f:
-        privkey = gpg.export_keys(key.fingerprint, secret=True, 
+        privkey = gpg.export_keys(key.fingerprint, secret=True,
                                   passphrase=PASSPHRASE)
         print(privkey.replace('\r', ''), file=f)
 

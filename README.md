@@ -1,8 +1,7 @@
 # Safely transferring code secrets
 (very much a work in progress)
 
-.. image:: https://codecov.io/gh/thebjorn/seeqret/branch/master/graph/badge.svg?token=5PQOZLTSYD 
-   :target: https://codecov.io/gh/thebjorn/seeqret
+[![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
