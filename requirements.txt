@@ -1,6 +1,8 @@
 rsa
 cryptography
 click
+rich
+
 pytest
 pytest-cov
 mkdocs

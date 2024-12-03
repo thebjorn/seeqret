@@ -12,11 +12,12 @@ setuptools.setup(
     keywords='secrets, gpg, pgp',
     version=version,
     author='Bjorn',
-    url='https://github/thebjorn/seeqret.git',
+    url='https://github.com/thebjorn/seeqret.git',
     install_requires=[
         'rsa',
         'cryptography',
         'Click',
+        'rich',
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
