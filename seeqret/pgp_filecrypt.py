@@ -1,6 +1,8 @@
+import os
 import gnupg
 
 PASSPHRASE = 'correct horse battery staple'
+GPG_BINARY = os.environ['GPG_BINARY']
 
 
 def generate_keys(gpg, user):
@@ -31,6 +33,7 @@ def encrypt_file(sender, file_name, recipient, suffix='.pgp-enc'):
     ciphertext = gpg.encrypt(plaintext, recipients=[recipient])
 
     with open(file_name + suffix, 'w') as f:
+        # print(ciphertext.encode('utf-8').replace(b'\r', b''), file=f)
         print(str(ciphertext).replace('\r', ''), file=f)
 
 
@@ -40,7 +43,7 @@ def decrypt_file(file_name, recipient):
         ciphertext = f.read()
 
     tmp = gpg.decrypt(ciphertext, passphrase=PASSPHRASE)
-    return tmp.data
+    return tmp.data.decode('utf-8')
 
 
 def setup_gpg(user):
@@ -55,25 +58,25 @@ def import_key(user, pubkey):
     gpg.trust_keys(tmp.fingerprints, 'TRUST_ULTIMATE')
 
 
-if __name__ == '__main__':
-    import os
+# if __name__ == '__main__':
+#     import os
 
-    plaintext = open('test.txt', 'rb').read()
+#     plaintext = open('test.txt', 'rb').read()
 
-    # generate public/private keys for andy and bob
-    setup_gpg('andy')
-    setup_gpg('bob')
+#     # generate public/private keys for andy and bob
+#     setup_gpg('andy')
+#     setup_gpg('bob')
 
-    # import each other's public keys
-    andy_pubkey = open('andy/.gnupg/gpg-public.asc').read()
-    bob_pubkey = open('bob/.gnupg/gpg-public.asc').read()
+#     # import each other's public keys
+#     andy_pubkey = open('andy/.gnupg/gpg-public.asc').read()
+#     bob_pubkey = open('bob/.gnupg/gpg-public.asc').read()
 
-    # keys must be imported to be able to encrypt messages to the person
-    import_key('andy', bob_pubkey)
-    import_key('bob', andy_pubkey)
+#     # keys must be imported to be able to encrypt messages to the person
+#     import_key('andy', bob_pubkey)
+#     import_key('bob', andy_pubkey)
 
-    # the email is from setup_gpg -> generate_keys -> name_email
-    encrypt_file('bob', 'test.txt', 'andy@example.com', suffix='.bob2andy')
-    pt = decrypt_file('test.txt.bob2andy', 'andy')
-    # print("PT:", repr(pt), repr(plaintext))
-    assert plaintext == pt
+#     # the email is from setup_gpg -> generate_keys -> name_email
+#     encrypt_file('bob', 'test.txt', 'andy@example.com', suffix='.bob2andy')
+#     pt = decrypt_file('test.txt.bob2andy', 'andy')
+#     # print("PT:", repr(pt), repr(plaintext))
+#     assert plaintext == pt

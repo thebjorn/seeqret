@@ -15,9 +15,12 @@ setuptools.setup(
     url='https://github.com/thebjorn/seeqret.git',
     install_requires=[
         'rsa',
+        'python-gnupg',
         'cryptography',
+        'pynacl',
         'Click',
         'rich',
+        'requests',
     ],
     classifiers=[
         'Programming Language :: Python :: 3',

@@ -1,7 +1,10 @@
 rsa
+python-gnupg
 cryptography
+pynacl
 click
 rich
+requests
 
 pytest
 pytest-cov

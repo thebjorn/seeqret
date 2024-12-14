@@ -55,7 +55,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
-  docs:
+  build-docs:
     name: Build docs and deploy to gh-pages
     runs-on: ubuntu-latest
     steps:
@@ -74,6 +74,26 @@ jobs:
       - name: Deploy docs
         run: |
           mkdocs gh-deploy
+
+  publish-docs:
+    name: Publish docs to gh-pages
+    needs: build-docs
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy-pages.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy it to Github pages
+        uses: actions/deploy-pages@v4
 
   publish:
     name: Publish package to PyPI
@@ -109,4 +129,3 @@ jobs:
           owner: thebjorn
           repo: pydeps
           token: ${{ secrets.GITHUB_TOKEN }}
-          

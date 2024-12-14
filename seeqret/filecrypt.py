@@ -5,6 +5,16 @@ from cryptography.fernet import Fernet
 
 
 def generate_keys():
+    """Generate cryptographic keys and save them to files.
+
+       This function generates a symmetric key using Fernet, and RSA key pairs including
+       a public key and a private key. The symmetric key and RSA keys are written to
+       separate files in binary mode. RSA keys are saved in the PEM format.
+
+       Raises:
+           OSError: If there is an error writing one of the keys to the file system.
+
+    """
     key = Fernet.generate_key()
 
     with open('symetric.key', 'wb') as f:
