@@ -157,10 +157,14 @@ def export_secrets(to):
     sender_pkey = load_private_key('private.key')
 
     cn = sqlite3.connect('seeqrets.db')
-    user_pubkey = cn.execute('''
-        select pubkey from users where username = ?
-    ''', (to,)).fetchone()
-    pubkey_string = user_pubkey[0]
+    if to == 'self':
+        admin = fetch_admin(cn)
+        pubkey_string = admin['pubkey']
+    else:
+        user_pubkey = cn.execute('''
+            select pubkey from users where username = ?
+        ''', (to,)).fetchone()
+        pubkey_string = user_pubkey[0]
 
     # convert string to public key object pkcs1
     receiver_pubkey = public_key(pubkey_string)
@@ -173,7 +177,7 @@ def export_secrets(to):
 
     res = dict(data=[])
     res['from'] = admin
-    res['to'] = dict(username=to)
+    res['to'] = dict(username=to if to != 'self' else admin['username'])
 
     for (app, env, key, value) in secrets:
         val = decrypt_string(cipher, value).decode('utf-8')
