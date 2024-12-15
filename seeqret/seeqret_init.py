@@ -4,16 +4,35 @@ from os import abort
 
 import click
 import os
+import sys
 
 from seeqret.migrations.initialize_database import init_db
 from seeqret.seeqret_add import fetch_admin
-from seeqret.seeqrypt.nacl_backend import generate_private_key, save_public_key
+from seeqret.seeqrypt.nacl_backend import generate_private_key, private_key, public_key, save_public_key
 from seeqret.seeqrypt.utils import generate_symetric_key
 
-from seeqret.utils import cd, is_encrypted, run, attrib_cmd
+from seeqret.utils import cd, is_encrypted, run, attrib_cmd, write_binary_file
 
 
-def secrets_init(dirname, user, email, ctx):
+def _validate_vault_dir(dirname):
+    # we can't store secrets in a vcs repository!
+    vcs_dirs = ['.svn', '.git', '.hg', '.bzr']
+    for parent in list(dirname.parents) + [dirname]:
+        for vcs in vcs_dirs:
+            if parent.joinpath(vcs).exists():
+                click.echo(f'{parent} is a {vcs[1:]} repository, aborting.')
+                abort()
+    
+    if sys.platform == 'win32':
+        import win32file
+        drive = os.path.splitdrive(os.path.abspath(dirname))[0]
+        if not win32file.GetDriveType(drive) == 4:
+            click.echo(f'{drive} is not a local drive, aborting.')
+            abort()
+
+
+
+def secrets_init(dirname, user, email, pubkey=None, key=None):
     # dirname is the parent of seeqret..!
     seeqret_dir = dirname / 'seeqret'
 
@@ -22,20 +41,29 @@ def secrets_init(dirname, user, email, ctx):
         by creating a new directory {seeqret_dir} and setting permissions.
     '''))
 
+    _validate_vault_dir(dirname)
     setup_vault(seeqret_dir)
-    create_user_keys(seeqret_dir, user, ctx)
+    create_user_keys(seeqret_dir, user, pubkey, key)
     init_db(seeqret_dir, user, email)
 
 
-def create_user_keys(vault_dir, user, ctx):
+def create_user_keys(vault_dir, user, pubkey=None, key=None):
     with cd(vault_dir):
         click.echo('Checking for existing user keys')
         if os.path.exists('public.key') and os.path.exists('private.key'):
             click.secho(f'User keys already exist for {user}', fg='green')
         else:
             click.echo(f'Creating keys for {user}')
-            pkey = generate_private_key('private.key')
-            pubkey = save_public_key('public.key', pkey)
+            if key:
+                write_binary_file('private.key', key.encode('ascii'))
+                pkey = private_key(key)
+            else:
+                pkey = generate_private_key('private.key')
+            if pubkey:
+                write_binary_file('public.key', pubkey.encode('ascii'))
+                pubkey = public_key(pubkey)
+            else:
+                pubkey = save_public_key('public.key', pkey)
             click.secho(f'Keys created for {user}', fg='green')
             click.secho(f'Please publish your public key: {pubkey}', fg='blue')
 
@@ -49,6 +77,12 @@ def create_user_keys(vault_dir, user, ctx):
             else:
                 click.secho('seeqret.key creation failed', fg='red')
                 abort()
+        run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
+    click.echo("I've set the SEEQRET environment variable to the vault directory")
+    click.echo("Please close this window and open a new one to continue.")
+    click.echo('or run\n\n')
+    click.echo(f'    set "SEQRET={os.path.abspath(vault_dir)}"')
+    click.echo('\n\nin the current window to continue here.')
 
 
 def upgrade_db():

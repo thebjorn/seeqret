@@ -74,15 +74,17 @@ def import_file(fname):
     default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}"
 )
 @click.option('--email', prompt=True)
-def init(dir, user, email):
+@click.option('--pubkey', default=None)
+@click.option('--key', default=None)
+def init(dir, user, email, pubkey=None, key=None):
     """Initialize a new vault
     """
-    ctx = Context()
+    # ctx = Context()
     dirname = Path(dir).resolve()
     vault_dir = dirname / 'seeqret'
-    ctx.vault_dir = vault_dir
-    ctx.user = user
-    ctx.email = email
+    # ctx.vault_dir = vault_dir
+    # ctx.user = user
+    # ctx.email = email
 
     # we want to create dirname / seeqret
 
@@ -106,7 +108,7 @@ def init(dir, user, email):
             default=True, abort=True)
         # remove_directory(vault_dir)
 
-    seeqret_init.secrets_init(dirname, user, email, ctx)
+    seeqret_init.secrets_init(dirname, user, email, pubkey, key)
 
 
 @cli.group()

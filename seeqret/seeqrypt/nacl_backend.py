@@ -32,6 +32,12 @@ def save_public_key(fname: str, pkey: PrivateKey) -> bytes:
     return pubkey
 
 
+def save_private_key(fname: str, pkey: PrivateKey) -> bytes:
+    pkey = encoding.Base64Encoder.encode(bytes(pkey._private_key))
+    write_binary_file(fname, pkey)
+    return pkey
+
+
 def private_key(string: bytes) -> PrivateKey:
     return PrivateKey(string, encoder=encoding.Base64Encoder)
 
