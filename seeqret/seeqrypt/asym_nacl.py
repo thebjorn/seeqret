@@ -1,8 +1,7 @@
 from binascii import b2a_base64
 
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives import hashes
 
 
 def asymetric_encrypt_string(public_key, original_text: bytes) -> bytes:
@@ -81,39 +80,3 @@ def sign_string(private_key, original_text: bytes) -> bytes:
         ),
         hashes.SHA256()
     ))
-
-def tmp():
-    # Generate an RSA private key. This includes the public key.
-    private_key = rsa.generate_private_key(
-        public_exponent=65537,
-        key_size=2048,
-    )
-
-    # Extract the public key from the private key
-    public_key = private_key.public_key()
-
-    message = b"Hello, World!"
-
-    # Encrypt the message using the public key
-    encrypted = public_key.encrypt(
-        message,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
-    print("Encrypted:", encrypted)
-
-    # Decrypt the message using the private key
-    decrypted = private_key.decrypt(
-        encrypted,
-        padding.OAEP(
-            mgf=padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256(),
-            label=None
-        )
-    )
-
-    print("Decrypted:", decrypted.decode())

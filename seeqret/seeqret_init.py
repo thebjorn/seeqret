@@ -65,7 +65,9 @@ def init_db(vault_dir, user, email):
                 );
             ''')
             c.execute('''
-                create unique index if not exists idx_users_username on users (username);
+                create unique index if not exists
+                    idx_users_username
+                on users (username);
             ''')
             c.execute('''
                 create table if not exists secrets (
@@ -83,7 +85,9 @@ def init_db(vault_dir, user, email):
             # updated bool default(false),
 
             c.execute('''
-                create unique index if not exists idx_secrets_key on secrets (app, env, key);
+                create unique index if not exists
+                    idx_secrets_key
+                on secrets (app, env, key);
             ''')
             cn.commit()
         with cn:
@@ -94,6 +98,7 @@ def init_db(vault_dir, user, email):
             ''', (user, email, open('public.key').read()))
             cn.commit()
         cn.close()
+
 
 def setup_vault(vault_dir):
     if not vault_dir.exists():
@@ -106,7 +111,10 @@ def setup_vault(vault_dir):
             if len(run(f"icacls {seeqret_dir}").splitlines()) >= 4:
                 click.echo(f"Tightening permissions on {vault_dir}")
                 click.echo("Granting (F)ull rights to current user only")
-                run(f"icacls {seeqret_dir} /grant {os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}:(F)")
+                userdomain = os.environ['USERDOMAIN']
+                username = os.environ['USERNAME']
+                current_user = f'{userdomain}\\{username}'
+                run(f"icacls {seeqret_dir} /grant {current_user}:(F)")
                 click.echo("Removing all inherited permissions")
                 run(f"icacls {seeqret_dir} /inheritance:r")
                 click.echo("Verifying permissions..")
@@ -123,15 +131,17 @@ def setup_vault(vault_dir):
 
             if not is_encrypted("seeqret"):
                 click.echo(f"encrypting {vault_dir}")
-                run(f"cipher /e seeqret")
+                run("cipher /e seeqret")
                 click.echo("Checking if encryption worked..")
                 if not is_encrypted("seeqret"):
-                    click.echo(f"cipher /e seeqret (this is very bad, aborting...)")
+                    click.echo(
+                        "cipher /e seeqret (this is very bad, aborting...)"
+                    )
                     # this is very, very bad..
                     abort()
                 else:
-                    click.echo(f"vault is encrypted")
+                    click.echo("vault is encrypted")
             else:
-                click.echo(f"vault is encrypted")
+                click.echo("vault is encrypted")
     else:
         click.echo("Not on Windows, skipping permissions setup.")

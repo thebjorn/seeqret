@@ -1,13 +1,11 @@
 import os
-import textwrap
 from pathlib import Path
 
 import click
 
 from .context import Context
 from . import seeqret_init, seeqret_add
-from .seeqret_add import fetch_pubkey_from_url
-from .utils import remove_directory, is_writable, cd, read_file, read_json
+from .utils import is_writable, cd, read_json
 
 DIRNAME = Path(__file__).parent
 
@@ -61,7 +59,11 @@ def import_file(fname):
     default='.',
     # prompt='Directory to initialize seeqret in',
 )
-@click.option('--user', prompt=True, default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}")
+@click.option(
+    '--user',
+    prompt=True,
+    default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}"
+)
 @click.option('--email', prompt=True)
 def init(dir, user, email):
     """Initialize a new vault
@@ -85,12 +87,16 @@ def init(dir, user, email):
 
     if vault_dir.exists():
         if not is_writable(vault_dir):
-            click.echo(f'The vault: {vault_dir} exists and is not writeable, you must delete it manually.')
+            click.echo(
+                f'The vault: {vault_dir} exists and is not writeable, '
+                'you must delete it manually.'
+            )
             return
-        click.confirm(f'The vault: {vault_dir} already exists, overwrite contents?', default=True, abort=True)
+        click.confirm(
+            f'The vault: {vault_dir} already exists, overwrite contents?',
+            default=True, abort=True)
         # remove_directory(vault_dir)
 
-    # if click.confirm(f'Initialize new seeqret vault in {dirname/"seeqret"}?', default=True, abort=True):
     seeqret_init.secrets_init(dirname, user, email, ctx)
 
 
@@ -99,19 +105,6 @@ def add():
     """Add a new secret, key or user
     """
     pass
-
-
-@add.command()
-def secret():
-    click.echo('Adding a new secret')
-    # seeqret_add.add_secret()
-
-
-
-@add.command()
-def key():
-    click.echo('Adding a new key')
-    # seeqret_add.add_key()
 
 
 @add.command()
@@ -137,10 +130,12 @@ def user(url, username, email):
 @click.argument('value')
 @click.option('--app', default='*')
 @click.option('--env', default='*')
-def key(name: str, value: str, app:str=None, env:str=None):
+def key(name: str, value: str, app: str = None, env: str = None):
     """Add a new key/value pair.
     """
-    click.echo(f'Adding a new key name: {name}, value: {value}, app: {app}, env: {env}')
+    click.echo(
+        f'Adding a new key: {name}, value: {value}, app: {app}, env: {env}'
+    )
 
     with cd(os.environ['SEEQRET']):
         seeqret_add.add_key(name, value, app, env)

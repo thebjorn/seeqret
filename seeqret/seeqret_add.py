@@ -3,23 +3,15 @@ import sqlite3
 from os import abort
 
 import click
-import cryptography
 import requests
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from nacl import encoding
 
 from seeqret.seeqrypt.aes_fernet import encrypt_string, decrypt_string
-# from seeqret.seeqrypt.asym_nacl import asymetric_encrypt_string, sign_string, asymetric_decrypt_string
 from seeqret.seeqrypt.nacl_backend import (
     public_key,
     asymetric_encrypt_string,
-    asymetric_decrypt_string, load_private_key, load_public_key, sign_message, hash_message,
+    asymetric_decrypt_string, load_private_key, hash_message,
 )
 from seeqret.seeqrypt.utils import load_symetric_key
-from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
-
-from seeqret.utils import read_binary_file
 
 
 def _validate_import_file(indata):
@@ -66,7 +58,10 @@ def import_secrets(indata):
     cn = sqlite3.connect('seeqrets.db')
     admin = fetch_admin(cn)
     if to_user != admin['username']:
-        click.secho(f'Import file has wrong user {to_user}, not {admin["username"]}', fg='red')
+        click.secho(
+            f'Incorrect to.username {to_user}, not {admin["username"]}',
+            fg='red'
+        )
         return
     click.secho("Correct `to` field.")
 
@@ -74,14 +69,20 @@ def import_secrets(indata):
     sender_pubkey = public_key(from_user['pubkey'])
     receiver_private_key = load_private_key('private.key')
     for item in data:
-        item['val'] = asymetric_decrypt_string(item['val'], receiver_private_key, sender_pubkey)
+        item['val'] = asymetric_decrypt_string(item['val'],
+                                               receiver_private_key,
+                                               sender_pubkey)
 
     click.secho("verifying signature...")
     verify_hash(signature, indata)
     click.secho('Successfully validated file', fg='green')
 
     if not fetch_user(cn, from_user['username']):
-        add_user(from_user['pubkey'], from_user['username'], from_user['email'])
+        add_user(
+            from_user['pubkey'],
+            from_user['username'],
+            from_user['email']
+        )
     else:
         click.secho('Found sender', fg='green')
     cn.close()
@@ -110,10 +111,12 @@ def _extract_data(message):
     # extract all message values
     data = []
     for secret in message['data']:
-        data.append(f"{secret['app']}:{secret['env']}:{secret['key']}:{secret['val']}\n")
+        data.append(f"{secret['app']}:{secret['env']}:{secret['key']}:{secret['val']}\n")  # noqa
     data.sort()
     sender = message['from']
-    data.append(f'From:{sender["username"]}|{sender["email"]}|{sender["pubkey"]}\n')
+    data.append(
+        f'From:{sender["username"]}|{sender["email"]}|{sender["pubkey"]}\n'
+    )
     data.append(f'To:{message["to"]["username"]}\n')
     msg = ''.join(data)
     return msg
@@ -150,7 +153,6 @@ def fetch_user(cn, username):
 def export_secrets(to):
     cipher = load_symetric_key('seeqret.key')
     sender_pkey = load_private_key('private.key')
-    sender_pubkey = load_public_key('public.key')
 
     cn = sqlite3.connect('seeqrets.db')
     user_pubkey = cn.execute('''
@@ -173,14 +175,15 @@ def export_secrets(to):
 
     for (app, env, key, value) in secrets:
         val = decrypt_string(cipher, value).decode('utf-8')
-        # val = asymetric_encrypt_string(val.encode('utf-8'), sender_pkey, receiver_pubkey)
         res['data'].append(dict(app=app, env=env, key=key, val=val))
     cn.close()
 
     res["signature"] = hash_secrets_message(res)
 
     for item in res["data"]:
-        item["val"] = asymetric_encrypt_string(item['val'], sender_pkey, receiver_pubkey)
+        item["val"] = asymetric_encrypt_string(
+            item['val'], sender_pkey, receiver_pubkey
+        )
 
     click.echo(json.dumps(res, indent=4))
     return res
@@ -215,7 +218,7 @@ def list_users():
 
 def add_key(key, value, app='*', env='*'):
     if ':' in key or ':' in app or ':' in env:
-        click.secho(f'Colon `:` is not valid in key, app, or env', fg='red')
+        click.secho('Colon `:` is not valid in key, app, or env', fg='red')
         abort()
 
     # click.secho(f'Adding key: {key} with value: {value}', fg='blue')
@@ -227,10 +230,15 @@ def add_key(key, value, app='*', env='*'):
             c = cn.cursor()
             c.execute('''
                 INSERT INTO secrets (app, env, key, value) VALUES (?, ?, ?, ?);
-            ''', (app, env, key, encrypt_string(cipher, str(value).encode('utf-8'))))
+            ''', (
+                app,
+                env,
+                key,
+                encrypt_string(cipher, str(value).encode('utf-8'))
+            ))
             cn.commit()
     except sqlite3.IntegrityError:
-        if click.confirm(f'Key already exists, overwrite?', default=True):
+        if click.confirm('Key already exists, overwrite?', default=True):
             with cn:
                 c.execute('''
                     UPDATE secrets SET value = ?
@@ -238,11 +246,17 @@ def add_key(key, value, app='*', env='*'):
                 ''', (encrypt_string(cipher, str(value).encode('utf-8')),
                       app, env, key))
 
-    secret = cn.execute('SELECT * FROM secrets WHERE key = ?', (key,)).fetchone()
+    secret = cn.execute('''
+        SELECT * FROM secrets WHERE key = ?
+    ''', (key,)).fetchone()
     if secret:
-        click.secho(f'..successfully added: {app}:{env}[{key}]', fg='green')
+        click.secho(
+            f'..successfully added: {app}:{env}[{key}]', fg='green'
+        )
     else:
-        click.secho(f'Error: {app}:{env}[{key}] not written to database', fg='red')
+        click.secho(
+            f'Error: {app}:{env}[{key}] not written to database', fg='red'
+        )
     cn.close()
 
 
@@ -251,8 +265,7 @@ def fetch_pubkey_from_url(url):
     if r.status_code != 200:
         click.secho(f'Failed to fetch public key: {url}', fg='red')
         abort()
-    click.secho(f'Public key fetched:', fg='green')
-    # click.secho(r.text, fg='green')
+    click.secho('Public key fetched.', fg='green')
     return r.text
 
 
@@ -266,7 +279,9 @@ def add_user(pubkey, username, email):
         ''', (username, email, pubkey))
         cn.commit()
 
-    usr = cn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-    click.secho(f'User added:', fg='green')
+    usr = cn.execute('''
+        SELECT * FROM users WHERE username = ?'
+    ''', (username,)).fetchone()
+    click.secho('User added:', fg='green')
     click.secho(f'    {usr}', fg='green')
     cn.close()

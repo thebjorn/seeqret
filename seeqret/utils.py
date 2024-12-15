@@ -4,6 +4,7 @@ import textwrap
 import click
 import json
 
+
 def local_appdata_dir():
     """Get the application data directory.
     """

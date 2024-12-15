@@ -1,4 +1,3 @@
-from cryptography.fernet import Fernet
 
 
 def encrypt_string(key, original_text: bytes) -> bytes:
