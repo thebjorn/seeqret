@@ -2,7 +2,7 @@ from contextlib import contextmanager
 import os
 import textwrap
 import click
-
+import json
 
 def local_appdata_dir():
     """Get the application data directory.
@@ -43,6 +43,13 @@ def read_file(fname):
     """
     with open(fname, 'r') as f:
         return f.read()
+
+
+def read_json(fname):
+    """Read json content from a file.
+    """
+    with open(fname, 'r') as f:
+        return json.load(f)
 
 
 def read_binary_file(fname):

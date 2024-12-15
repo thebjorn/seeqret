@@ -3,15 +3,20 @@
 - [x] Fix init directory
 - [x] Storage: sqlite3
 - [x] Add key pair for native user
-- [ ] Add pkey for foreign user
-- [ ] Add app:env(key:value) pair
-- [ ] Export app:env(key:value) pair to foreign user
+- [x] Add pkey for foreign user
+- [x] Add app:env(key:value) pair
+- [x] Export app:env(key:value) pair to foreign user
+- [x] import export file
 
 ## commands
 
 ### init
 ```bash
-  seeqret init --email bp@norsktest.no
+  seeqret init --user bp --email bp@norsktest.no
+```
+in another directory
+```bash
+  seeqret init --user tkbe --email bjorn@tkbe.org
 ```
 
 ### add user

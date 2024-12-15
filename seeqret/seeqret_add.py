@@ -1,81 +1,156 @@
 import json
 import sqlite3
+from os import abort
 
 import click
 import cryptography
 import requests
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
+from nacl import encoding
 
 from seeqret.seeqrypt.aes_fernet import encrypt_string, decrypt_string
-from seeqret.seeqrypt.asym_nacl import asymetric_encrypt_string, sign_string, asymetric_decrypt_string
+# from seeqret.seeqrypt.asym_nacl import asymetric_encrypt_string, sign_string, asymetric_decrypt_string
+from seeqret.seeqrypt.nacl_backend import (
+    public_key,
+    asymetric_encrypt_string,
+    asymetric_decrypt_string, load_private_key, load_public_key, sign_message, hash_message,
+)
 from seeqret.seeqrypt.utils import load_symetric_key
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 
 from seeqret.utils import read_binary_file
 
 
-def import_secrets(text):
-    cipher = load_symetric_key('seeqret.key')
-    private_key = load_pem_private_key(read_binary_file('private.key'), password=None)
-
-    indata = json.loads(text)
+def _validate_import_file(indata):
+    errors = False
     if 'from' not in indata:
         click.secho('Invalid file format, missing "from"', fg='red')
-        return
+        errors = True
+    if 'username' not in indata['from']:
+        click.secho('Invalid file format, missing "from.username"', fg='red')
+        errors = True
+    if 'email' not in indata['from']:
+        click.secho('Invalid file format, missing "from.email"', fg='red')
+        errors = True
+    if 'pubkey' not in indata['from']:
+        click.secho('Invalid file format, missing "from.pubkey"', fg='red')
+        errors = True
     if 'data' not in indata:
         click.secho('Invalid file format, missing "data"', fg='red')
-        return
+        errors = True
     if 'signature' not in indata:
         click.secho('Invalid file format, missing "signature"', fg='red')
-        return
+        errors = True
     if 'to' not in indata:
         click.secho('Invalid file format, missing: "to"', fg='red')
+        errors = True
+    if 'username' not in indata['to']:
+        click.secho('Invalid file format, missing "to.username"', fg='red')
+        errors = True
+
+    return not errors
+
+
+def import_secrets(indata):
+    if not _validate_import_file(indata):
+        click.secho('Invalid file format.', fg='red')
         return
+    click.secho("file format ok...", fg='green')
 
     signature = indata['signature']
     data = indata['data']
     from_user = indata['from']
-    to_user = indata['to']
+    to_user = indata['to']['username']
 
-    user_pubkey = load_pem_public_key(from_user['pubkey'].encode('ascii'))
-    sdata = []
+    cn = sqlite3.connect('seeqrets.db')
+    admin = fetch_admin(cn)
+    if to_user != admin['username']:
+        click.secho(f'Import file has wrong user {to_user}, not {admin["username"]}', fg='red')
+        return
+    click.secho("Correct `to` field.")
+
+    # cipher = load_symetric_key('seeqret.key')
+    sender_pubkey = public_key(from_user['pubkey'])
+    receiver_private_key = load_private_key('private.key')
+    for item in data:
+        item['val'] = asymetric_decrypt_string(item['val'], receiver_private_key, sender_pubkey)
+
+    click.secho("verifying signature...")
+    verify_hash(signature, indata)
+    click.secho('Successfully validated file', fg='green')
+
+    if not fetch_user(cn, from_user['username']):
+        add_user(from_user['pubkey'], from_user['username'], from_user['email'])
+    else:
+        click.secho('Found sender', fg='green')
+    cn.close()
+
+    # click.echo(json.dumps(indata, indent=4))
+
     for secret in data:
-        sdata.append(f"{secret['app']}:{secret['env']}[{secret['key']}] = {secret['val']}\n")
-    sdata.sort()
-
-    try:
-        user_pubkey.verify(
-            signature.encode('ascii'),
-            ''.join(sdata).encode('utf-8'),
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
+        add_key(
+            secret['key'],
+            secret['val'],
+            secret['app'],
+            secret['env'],
+            # secret['type']
         )
-    except cryptography.exceptions.InvalidSignature:
-        click.secho('Invalid signature', fg='red')
-        # return
 
-    # cn = sqlite3.connect('seeqrets.db')
-    print("DATA:", data)
-    for secret in data:
-        val = asymetric_decrypt_string(private_key, secret['val'].encode('ascii'))
 
-        print("INSERTING:", secret['app'], secret['env'], secret['key'], val)
-        val = encrypt_string(cipher, val)
-        # with cn:
-        #     c = cn.cursor()
-        #     c.execute('''
-        #         INSERT INTO secrets (app, env, key, value) VALUES (?, ?, ?, ?);
-        #     ''', (secret['app'], secret['env'], secret['key'], val))
-        #     cn.commit()
-    # cn.close()
+def verify_hash(hash, message):
+    msg = _extract_data(message)
+    if hash != hash_message(msg.encode('utf-8')):
+        click.secho('Invalid hash', fg='red')
+        abort()
+    return True
+
+
+def _extract_data(message):
+    # extract all message values
+    data = []
+    for secret in message['data']:
+        data.append(f"{secret['app']}:{secret['env']}:{secret['key']}:{secret['val']}\n")
+    data.sort()
+    sender = message['from']
+    data.append(f'From:{sender["username"]}|{sender["email"]}|{sender["pubkey"]}\n')
+    data.append(f'To:{message["to"]["username"]}\n')
+    msg = ''.join(data)
+    return msg
+
+
+def hash_secrets_message(message):
+    msg = _extract_data(message)
+    return hash_message(msg.encode('utf-8'))
+
+
+def fetch_admin(cn):
+    admin = cn.execute('''
+        select username, email, pubkey
+        from users
+        where id = 1
+    ''').fetchone()
+    if not admin:
+        click.secho('No admin user', fg='red')
+        abort()
+    return dict(username=admin[0], email=admin[1], pubkey=admin[2])
+
+
+def fetch_user(cn, username):
+    user = cn.execute('''
+        select username, email, pubkey
+        from users
+        where username = ?
+    ''', [username]).fetchone()
+    if not user:
+        return None
+    return dict(username=user[0], email=user[1], pubkey=user[2])
 
 
 def export_secrets(to):
     cipher = load_symetric_key('seeqret.key')
+    sender_pkey = load_private_key('private.key')
+    sender_pubkey = load_public_key('public.key')
 
     cn = sqlite3.connect('seeqrets.db')
     user_pubkey = cn.execute('''
@@ -84,32 +159,29 @@ def export_secrets(to):
     pubkey_string = user_pubkey[0]
 
     # convert string to public key object pkcs1
-    pubkey = load_pem_public_key(pubkey_string.encode('ascii'))
+    receiver_pubkey = public_key(pubkey_string)
 
     secrets = cn.execute('''
         select app, env, key, value
         from secrets
     ''').fetchall()
-    admin = cn.execute('''
-        select username, email, pubkey
-        from users
-        where id = 1
-    ''').fetchone()
+    admin = fetch_admin(cn)
 
-    res = dict(data=[], signature='')
-    res['from'] = dict(username=admin[0], email=admin[1], pubkey=admin[2])
+    res = dict(data=[])
+    res['from'] = admin
     res['to'] = dict(username=to)
+
     for (app, env, key, value) in secrets:
         val = decrypt_string(cipher, value).decode('utf-8')
-        val = asymetric_encrypt_string(pubkey, val.encode('utf-8')).decode('ascii')
+        # val = asymetric_encrypt_string(val.encode('utf-8'), sender_pkey, receiver_pubkey)
         res['data'].append(dict(app=app, env=env, key=key, val=val))
     cn.close()
-    data = []
-    for secret in res['data']:
-        data.append(f"{secret['app']}:{secret['env']}[{secret['key']}] = {secret['val']}\n")
-    data.sort()
-    private_key = load_pem_private_key(read_binary_file('private.key'), password=None)
-    res['signature'] = sign_string(private_key, ''.join(data).encode('utf-8')).decode('ascii')
+
+    res["signature"] = hash_secrets_message(res)
+
+    for item in res["data"]:
+        item["val"] = asymetric_encrypt_string(item['val'], sender_pkey, receiver_pubkey)
+
     click.echo(json.dumps(res, indent=4))
     return res
 
@@ -142,7 +214,12 @@ def list_users():
 
 
 def add_key(key, value, app='*', env='*'):
-    click.secho(f'Adding key: {key} with value: {value}', fg='blue')
+    if ':' in key or ':' in app or ':' in env:
+        click.secho(f'Colon `:` is not valid in key, app, or env', fg='red')
+        abort()
+
+    # click.secho(f'Adding key: {key} with value: {value}', fg='blue')
+    click.secho(f'Adding key: {key}..', fg='blue')
     cipher = load_symetric_key('seeqret.key')
     cn = sqlite3.connect('seeqrets.db')
     try:
@@ -162,27 +239,31 @@ def add_key(key, value, app='*', env='*'):
                       app, env, key))
 
     secret = cn.execute('SELECT * FROM secrets WHERE key = ?', (key,)).fetchone()
-    click.secho(f'Key: {app}:{env}[{key}] =', fg='green')
-    click.secho(f'    {secret}', fg='green')
+    if secret:
+        click.secho(f'..successfully added: {app}:{env}[{key}]', fg='green')
+    else:
+        click.secho(f'Error: {app}:{env}[{key}] not written to database', fg='red')
     cn.close()
 
 
-def add_user(url, username, email):
-    click.secho(f'Fetching public key: {url}', fg='blue')
+def fetch_pubkey_from_url(url):
     r = requests.get(url)
     if r.status_code != 200:
         click.secho(f'Failed to fetch public key: {url}', fg='red')
-        return
+        abort()
     click.secho(f'Public key fetched:', fg='green')
-    click.secho(r.text, fg='green')
+    # click.secho(r.text, fg='green')
+    return r.text
 
+
+def add_user(pubkey, username, email):
     click.secho(f'Adding user: {username} with email: {email}', fg='blue')
     cn = sqlite3.connect('seeqrets.db')
     with cn:
         c = cn.cursor()
         c.execute('''
             INSERT INTO users (username, email, pubkey) VALUES (?, ?, ?);
-        ''', (username, email, r.text))
+        ''', (username, email, pubkey))
         cn.commit()
 
     usr = cn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()

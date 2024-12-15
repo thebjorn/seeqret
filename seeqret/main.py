@@ -6,7 +6,8 @@ import click
 
 from .context import Context
 from . import seeqret_init, seeqret_add
-from .utils import remove_directory, is_writable, cd, read_file
+from .seeqret_add import fetch_pubkey_from_url
+from .utils import remove_directory, is_writable, cd, read_file, read_json
 
 DIRNAME = Path(__file__).parent
 
@@ -49,7 +50,7 @@ def export(to):
 def import_file(fname):
     """Import a vault from a file
     """
-    text = read_file(fname)
+    text = read_json(fname)
     with cd(os.environ['SEEQRET']):
         seeqret_add.import_secrets(text)
 
@@ -126,7 +127,9 @@ def user(url, username, email):
     """
     click.echo(f'Adding a new user, from {url}')
     with cd(os.environ['SEEQRET']):
-        seeqret_add.add_user(url, username, email)
+        click.secho(f'Fetching public key: {url}', fg='blue')
+        pubkey = seeqret_add.fetch_pubkey_from_url(url)
+        seeqret_add.add_user(pubkey, username, email)
 
 
 @add.command()

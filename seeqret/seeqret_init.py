@@ -5,7 +5,9 @@ from os import abort
 import click
 import os
 
-from seeqret.seeqrypt.utils import generate_asymetric_keys, generate_symetric_key
+from seeqret.seeqrypt.nacl_backend import generate_private_key, save_public_key
+from seeqret.seeqrypt.utils import generate_symetric_key
+
 from seeqret.utils import cd, is_encrypted, run, attrib_cmd
 
 
@@ -30,8 +32,10 @@ def create_user_keys(vault_dir, user, ctx):
             click.secho(f'User keys already exist for {user}', fg='green')
         else:
             click.echo(f'Creating keys for {user}')
-            generate_asymetric_keys('public.key', 'private.key')
+            pkey = generate_private_key('private.key')
+            pubkey = save_public_key('public.key', pkey)
             click.secho(f'Keys created for {user}', fg='green')
+            click.secho(f'Please publish your public key: {pubkey}', fg='blue')
 
         if os.path.exists('seeqret.key'):
             click.secho('seeqret.key already exists', fg='green')
@@ -70,9 +74,14 @@ def init_db(vault_dir, user, email):
                     env text not null,
                     key text not null,
                     value text not null,
+
                     unique(app, env, key)
                 );
             ''')
+            # more fields...
+            # type text not null default('str'),
+            # updated bool default(false),
+
             c.execute('''
                 create unique index if not exists idx_secrets_key on secrets (app, env, key);
             ''')

@@ -6,7 +6,7 @@ from seeqret.seeqrypt.utils import load_symetric_key
 from seeqret.utils import cd
 
 
-def get(key, app=None, env=None):
+def get(key, app='*', env='*'):
     """Get a value from the configuration.
 
     Args:
