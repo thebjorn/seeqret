@@ -190,6 +190,7 @@ def export_secrets(to):
 
 
 def list_secrets():
+    res = []
     cipher = load_symetric_key('seeqret.key')
     cn = sqlite3.connect('seeqrets.db')
     secrets = cn.execute('''
@@ -199,7 +200,9 @@ def list_secrets():
     for (app, env, key, value) in secrets:
         val = decrypt_string(cipher, value).decode('utf-8')
         click.echo(f'Key: {app}:{env}[{key}] = {val}')
+        res.append([app, env, key, val])
     cn.close()
+    return res
 
 
 def list_users():

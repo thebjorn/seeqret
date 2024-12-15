@@ -9,7 +9,7 @@ from .utils import is_writable, cd, read_json
 
 DIRNAME = Path(__file__).parent
 
-os.environ['SEEQRET'] = os.getcwd() + r'\seeqret'
+# os.environ['SEEQRET'] = os.getcwd() + r'\seeqret'
 
 
 @click.group()
@@ -23,13 +23,14 @@ def list():
     """List the contents of the vault
     """
     with cd(os.environ['SEEQRET']):
-        seeqret_add.list_secrets()
+        return seeqret_add.list_secrets()
 
 
 @cli.command()
 def users():
     """List the users in the vault
     """
+    # print("SEEQRET:DIR:", os.environ['SEEQRET'])
     with cd(os.environ['SEEQRET']):
         seeqret_add.list_users()
 
@@ -139,17 +140,3 @@ def key(name: str, value: str, app: str = None, env: str = None):
 
     with cd(os.environ['SEEQRET']):
         seeqret_add.add_key(name, value, app, env)
-
-# @click.command()
-# def generate():
-#     click.echo('Generating a new key pair')
-#
-#
-# @cli.command()
-# def encrypt():
-#     click.echo('Encrypting a message')
-#
-#
-# @cli.command()
-# def decrypt():
-#     click.echo('Decrypting a message')

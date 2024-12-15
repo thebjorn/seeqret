@@ -1,3 +1,4 @@
+import pytest
 import os
 import seeqret
 from seeqret.seeqret_add import add_key
@@ -15,6 +16,7 @@ def _fill_db():
         add_key(f'key{i}', i)
 
 
+@pytest.mark.skip(reason="don't test performance in CI")
 def test_performance():
     # _create_db()
     # _fill_db()
