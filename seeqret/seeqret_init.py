@@ -5,6 +5,8 @@ from os import abort
 import click
 import os
 
+from seeqret.migrations.initialize_database import init_db
+from seeqret.seeqret_add import fetch_admin
 from seeqret.seeqrypt.nacl_backend import generate_private_key, save_public_key
 from seeqret.seeqrypt.utils import generate_symetric_key
 
@@ -49,55 +51,12 @@ def create_user_keys(vault_dir, user, ctx):
                 abort()
 
 
-def init_db(vault_dir, user, email):
-    click.echo(f'Initializing database in {vault_dir}')
-    # create a database in the vault_dir
-    with cd(vault_dir):
+def upgrade_db():
+    with cd(os.environ['SEEQRET']):
         cn = sqlite3.connect('seeqrets.db')
         with cn:
-            c = cn.cursor()
-            c.execute('''
-                create table if not exists users (
-                    id integer primary key,
-                    username text not null,
-                    email text not null,
-                    pubkey text not null
-                );
-            ''')
-            c.execute('''
-                create unique index if not exists
-                    idx_users_username
-                on users (username);
-            ''')
-            c.execute('''
-                create table if not exists secrets (
-                    id integer primary key,
-                    app text not null,
-                    env text not null,
-                    key text not null,
-                    value text not null,
-
-                    unique(app, env, key)
-                );
-            ''')
-            # more fields...
-            # type text not null default('str'),
-            # updated bool default(false),
-
-            c.execute('''
-                create unique index if not exists
-                    idx_secrets_key
-                on secrets (app, env, key);
-            ''')
-            cn.commit()
-        with cn:
-            c = cn.cursor()
-            c.execute('''
-                insert or ignore into users (username, email, pubkey)
-                values (?, ?, ?);
-            ''', (user, email, open('public.key').read()))
-            cn.commit()
-        cn.close()
+            admin = fetch_admin(cn)
+        init_db(os.environ['SEEQRET'], admin['username'], admin['email'])
 
 
 def setup_vault(vault_dir):

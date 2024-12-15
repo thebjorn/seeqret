@@ -3,3 +3,7 @@
 site/
 .env
 dist/
+tmp/
+*.db
+*.key
+.idea/

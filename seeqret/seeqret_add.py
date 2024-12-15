@@ -1,6 +1,8 @@
 import json
 import sqlite3
 from os import abort
+from rich.console import Console
+from rich.table import Table
 
 import click
 import requests
@@ -197,10 +199,18 @@ def list_secrets():
         select app, env, key, value
         from secrets
     ''').fetchall()
+
+    table = Table()
+    table.add_column("App")
+    table.add_column("Env")
+    table.add_column("Key")
+    table.add_column("Value")
     for (app, env, key, value) in secrets:
         val = decrypt_string(cipher, value).decode('utf-8')
-        click.echo(f'Key: {app}:{env}[{key}] = {val}')
-        res.append([app, env, key, val])
+        table.add_row(app, env, key, val)
+
+    console = Console()
+    console.print(table)
     cn.close()
     return res
 

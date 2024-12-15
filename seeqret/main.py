@@ -19,6 +19,14 @@ def cli():
 
 
 @cli.command()
+def upgrade():
+    """Upgrade the database to the latest version
+    """
+    with cd(os.environ['SEEQRET']):
+        seeqret_init.upgrade_db()
+
+
+@cli.command()
 def list():
     """List the contents of the vault
     """
