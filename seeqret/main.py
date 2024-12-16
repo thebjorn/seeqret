@@ -3,17 +3,13 @@ from pathlib import Path
 
 import click
 
-from .context import Context
 from . import seeqret_init, seeqret_add
 from .utils import is_writable, cd, read_json
 
 DIRNAME = Path(__file__).parent
 
-# os.environ['SEEQRET'] = os.getcwd() + r'\seeqret'
-
 
 @click.group()
-# @click.pass_context
 def cli():
     pass
 
@@ -119,10 +115,11 @@ def add():
 
 
 @add.command()
-@click.option('--url', prompt=True)
+@click.option('--url')
+@click.option('--token')
 @click.option('--username', prompt=True)
 @click.option('--email', prompt=True)
-def user(url, username, email):
+def user(url, username, email, token):
     """Add a new user to the vault from a public key.
 
        If the public key is on github, the url is the raw url, e.g.
@@ -132,7 +129,7 @@ def user(url, username, email):
     click.echo(f'Adding a new user, from {url}')
     with cd(os.environ['SEEQRET']):
         click.secho(f'Fetching public key: {url}', fg='blue')
-        pubkey = seeqret_add.fetch_pubkey_from_url(url)
+        pubkey = seeqret_add.fetch_pubkey_from_url(url) if url else token
         seeqret_add.add_user(pubkey, username, email)
 
 

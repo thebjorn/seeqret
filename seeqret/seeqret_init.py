@@ -8,7 +8,12 @@ import sys
 
 from seeqret.migrations.initialize_database import init_db
 from seeqret.seeqret_add import fetch_admin
-from seeqret.seeqrypt.nacl_backend import generate_private_key, private_key, public_key, save_public_key
+from seeqret.seeqrypt.nacl_backend import (
+    generate_private_key,
+    private_key,
+    public_key,
+    save_public_key,
+)
 from seeqret.seeqrypt.utils import generate_symetric_key
 
 from seeqret.utils import cd, is_encrypted, run, attrib_cmd, write_binary_file
@@ -22,14 +27,13 @@ def _validate_vault_dir(dirname):
             if parent.joinpath(vcs).exists():
                 click.echo(f'{parent} is a {vcs[1:]} repository, aborting.')
                 abort()
-    
+
     if sys.platform == 'win32':
         import win32file
         drive = os.path.splitdrive(os.path.abspath(dirname))[0]
         if not win32file.GetDriveType(drive) == 4:
             click.echo(f'{drive} is not a local drive, aborting.')
             abort()
-
 
 
 def secrets_init(dirname, user, email, pubkey=None, key=None):
@@ -78,7 +82,7 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
                 click.secho('seeqret.key creation failed', fg='red')
                 abort()
         run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
-    click.echo("I've set the SEEQRET environment variable to the vault directory")
+    click.echo("I've set the SEEQRET env variable to the vault directory")
     click.echo("Please close this window and open a new one to continue.")
     click.echo('or run\n\n')
     click.echo(f'    set "SEQRET={os.path.abspath(vault_dir)}"')
