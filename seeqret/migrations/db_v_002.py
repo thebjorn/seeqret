@@ -20,7 +20,8 @@ def init_db_v_002(vault_dir):
             c = cn.cursor()
             if not column_exists(cn, 'secrets', 'type'):
                 c.execute('''
-                    alter table secrets add column type text not null default('str');
+                    alter table secrets
+                    add column type text not null default('str');
                 ''')
             if not column_exists(cn, 'secrets', 'updated'):
                 c.execute('''
@@ -32,4 +33,3 @@ def init_db_v_002(vault_dir):
             ''')
             cn.commit()
         cn.close()
-

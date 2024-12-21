@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 
-from .context import Context
+# from .context import Context
 from . import seeqret_init, seeqret_add
 from .utils import is_writable, cd, read_json
 

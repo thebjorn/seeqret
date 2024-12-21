@@ -1,5 +1,5 @@
 import sqlite3
-import click
+# import click
 from seeqret.migrations.utils import current_version
 from seeqret.utils import cd
 
