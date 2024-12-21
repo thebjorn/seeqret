@@ -1,7 +1,7 @@
-name: Python Tests
-
+name: Seeqret CI/CD
 on:
   push
+permissions: read-all
 
 env:
   HOME_REPO: thebjorn/seeqret
