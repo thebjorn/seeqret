@@ -1,6 +1,8 @@
 
-
+![cicd](https://github.com/thebjorn/seeqret/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
+[![pypi](https://img.shields.io/pypi/v/seeqret?label=pypi%20seeqret)](https://pypi.org/project/seeqret/)
+[![downloads](https://pepy.tech/badge/seeqret)](https://pepy.tech/project/seeqret)
 <a href="https://github.com/thebjorn/seeqret"><img src="github-mark/github-mark.png" width="25" height="25"></a>
 
 ![codecov](https://codecov.io/gh/thebjorn/seeqret/graphs/sunburst.svg?token=5PQOZLTSYD)
