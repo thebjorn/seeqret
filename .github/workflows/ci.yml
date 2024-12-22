@@ -79,6 +79,7 @@ jobs:
   publish-docs:
     name: Publish docs to gh-pages
     needs: build-docs
+    permissions: write-all
     environment:
       name: github-pages
       url: ${{ steps.deploy-pages.outputs.page_url }}
