@@ -76,42 +76,22 @@ jobs:
           pip install -e .
       - name: Build docs
         run: |
+          git checkout master
           git pull --ff
           mkdocs build
       - name: Deploy docs
         run: |
           mkdocs gh-deploy
 
-#  publish-docs:
-#    name: Publish docs to gh-pages
-#    needs: build-docs
-#    environment:
-#      name: github-pages
-#      url: ${{ steps.deploy-pages.outputs.page_url }}
-#    runs-on: ubuntu-latest
-#    permissions:
-#      pages: write
-#      actions: write
-#      attestations: write
-#      pull-requests: write
-#      contents: write
-#
-#    steps:
-#      - uses: actions/checkout@v4
-#        with:
-#          ref: gh-pages
-#      - name: Setup Pages
-#        uses: actions/configure-pages@v5
-#      - name: Upload artifact
-#        uses: actions/upload-pages-artifact@v3
-#        with:
-#          path: .
-#      - name: Deploy it to Github pages
-#        uses: actions/deploy-pages@v4
-
   publish:
     name: Publish package to PyPI
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      packages: write
+      attestations: write
+      pull-requests: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -141,5 +121,5 @@ jobs:
         with:
           artifacts: "dist/*"
           owner: thebjorn
-          repo: pydeps
+          repo: seeqrets
           token: ${{ secrets.GITHUB_TOKEN }}
