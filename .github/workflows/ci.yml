@@ -60,33 +60,49 @@ jobs:
     # github runs both a push and a tag action and they somehow interefere with gh-pages, so skip tags?
     if: ${{ ! startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v2
+
+      - name: Deploy docs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        # Or use mhausenblas/mkdocs-deploy-gh-pages@nomaterial to build without the mkdocs-material theme
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CUSTOM_DOMAIN: optionaldomain.com
+          # CONFIG_FILE: folder/mkdocs.yml
+          # EXTRA_PACKAGES: build-base
+          # GITHUB_DOMAIN: github.myenterprise.com
+          # REQUIREMENTS: folder/requirements.txt
+
+
 #    permissions:
 #      pages: write
 #      actions: write
 #      attestations: write
 #      pull-requests: write
 #      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: |
-          git pull origin master
-          pip install -r requirements.txt
-          pip install -e .
-      - name: Build docs
-        run: |
-          git pull origin master
-          mkdocs build
-      - name: Deploy docs
-        env:
-          GITHUB_TOKEN: ${{ secrets.SEEQRET_GH_TOKEN }}
-        run: |
-          git pull origin master
-          mkdocs gh-deploy
+#    steps:
+#      - uses: actions/checkout@v4
+#      - name: Set up Python
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: '3.12'
+#      - name: Install dependencies
+#        run: |
+#          git pull origin master
+#          pip install -r requirements.txt
+#          pip install -e .
+#      - name: Build docs
+#        run: |
+#          git pull origin master
+#          mkdocs build
+#      - name: Deploy docs
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.SEEQRET_GH_TOKEN }}
+#        run: |
+#          git pull origin master
+#          mkdocs gh-deploy
 
   publish:
     name: Publish package to PyPI
@@ -117,12 +133,6 @@ jobs:
           name: Packages
           path: dist/
 
-      - name: Deploy to PyPI
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
-        shell: bash
-        run: |
-          twine upload -u __token__ -p ${{ secrets.PYPI_API_TOKEN }} dist/*
-
       - name: Create Github release
         uses: ncipollo/release-action@v1
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
@@ -130,4 +140,10 @@ jobs:
           artifacts: "dist/*"
           owner: thebjorn
           repo: seeqrets
-          token: ${{ secrets.SEEQRET_GH_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
+        shell: bash
+        run: |
+          twine upload -u __token__ -p ${{ secrets.PYPI_API_TOKEN }} dist/*
