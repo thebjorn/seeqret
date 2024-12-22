@@ -1,5 +1,4 @@
 from cryptography.fernet import Fernet
-import rsa
 
 
 def _chunks(data, size):
