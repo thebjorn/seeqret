@@ -126,4 +126,4 @@ jobs:
           artifacts: "dist/*"
           owner: thebjorn
           repo: seeqrets
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SEEQRET_GH_TOKEN }}
