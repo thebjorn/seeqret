@@ -59,6 +59,7 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
         else:
             click.echo(f'Creating keys for {user}')
             if key:
+                # FIXME: use the nacl_backend functions for reading/writing keys?
                 write_binary_file('private.key', key.encode('ascii'))
                 pkey = private_key(key)
             else:
