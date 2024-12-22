@@ -58,7 +58,7 @@ jobs:
   build-docs:
     name: Build docs and deploy to gh-pages
     # github runs both a push and a tag action and they somehow interefere with gh-pages, so skip tags?
-    if: github.event_name == 'push' && ${{ ! startsWith(github.ref, 'refs/tags/v') }} && github.repository == env.HOME_REPO
+    if: ${{ ! startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -79,9 +79,13 @@ jobs:
           pip install -e .
       - name: Build docs
         run: |
+          git pull origin master
           mkdocs build
       - name: Deploy docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEEQRET_GH_TOKEN }}
         run: |
+          git pull origin master
           mkdocs gh-deploy
 
   publish:
