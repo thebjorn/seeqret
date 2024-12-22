@@ -58,6 +58,12 @@ jobs:
   build-docs:
     name: Build docs and deploy to gh-pages
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      actions: write
+      attestations: write
+      pull-requests: write
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -76,26 +82,32 @@ jobs:
         run: |
           mkdocs gh-deploy
 
-  publish-docs:
-    name: Publish docs to gh-pages
-    needs: build-docs
-    permissions: write-all
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy-pages.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - name: Deploy it to Github pages
-        uses: actions/deploy-pages@v4
+#  publish-docs:
+#    name: Publish docs to gh-pages
+#    needs: build-docs
+#    environment:
+#      name: github-pages
+#      url: ${{ steps.deploy-pages.outputs.page_url }}
+#    runs-on: ubuntu-latest
+#    permissions:
+#      pages: write
+#      actions: write
+#      attestations: write
+#      pull-requests: write
+#      contents: write
+#
+#    steps:
+#      - uses: actions/checkout@v4
+#        with:
+#          ref: gh-pages
+#      - name: Setup Pages
+#        uses: actions/configure-pages@v5
+#      - name: Upload artifact
+#        uses: actions/upload-pages-artifact@v3
+#        with:
+#          path: .
+#      - name: Deploy it to Github pages
+#        uses: actions/deploy-pages@v4
 
   publish:
     name: Publish package to PyPI
