@@ -76,8 +76,6 @@ jobs:
           pip install -e .
       - name: Build docs
         run: |
-          git checkout master
-          git pull --ff
           mkdocs build
       - name: Deploy docs
         run: |
@@ -85,6 +83,9 @@ jobs:
 
   publish:
     name: Publish package to PyPI
+    needs:
+      - test
+      - build-docs
     runs-on: ubuntu-latest
     permissions:
       actions: write
