@@ -1,11 +1,15 @@
+
+
 [![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
 
+[![github](github-mark/github-mark.png)](https://github.com/thebjorn/seeqret)
 
 ![codecov](https://codecov.io/gh/thebjorn/seeqret/graphs/sunburst.svg?token=5PQOZLTSYD)
 
 # Seeqret: Safely transferring code secrets
 (very much a work in progress)
 
+![Seeqret Logo](seeqret-logo-256.png)
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
@@ -45,17 +49,19 @@ You can make the following assumptions:
 - the encryption algorithms are secure
 - encrypted directories (Windows) are secure
 
-  ```bash
-  attrib +I %1
-  icacls %1 /grant %USERDOMAIN%\%USERNAME%:(F) /T
-  icacls %1 /inheritance:r
-  cipher /e %1
-  ```
+
+        attrib +I %1
+        icacls %1 /grant %USERDOMAIN%\%USERNAME%:(F) /T
+        icacls %1 /inheritance:r
+        cipher /e %1
+
 
 - [encrypted private directories](https://help.ubuntu.com/community/EncryptedPrivateDirectory) (Ubuntu) are secure.
 - `0600` (read/write by owner only) directories (linux) are safe provided the user is not compromised.
 
+## Top level help
 ```bash
+seeqret❱ seeqret --help
 Usage: seeqret [OPTIONS] COMMAND [ARGS]...
 
 Options:
@@ -71,6 +77,7 @@ Commands:
   users        List the users in the vault
 ```
 
+## add has two sub-commands
 ```bash
 seeqret❱ seeqret add --help                                                                                                                                                                              seeqret   
 Usage: seeqret add [OPTIONS] COMMAND [ARGS]...
@@ -119,6 +126,8 @@ The code in the `filecrypt.py` file is from [Asymetric Encryption](https://www.y
 
 The code in `pgp_filecrypt.py` contains the code needed to do pgp encryption/decryption (here you need to set the trust level when importing keys to the people you want to send encrypted messages to).
 
+---
+**footnotes**
 
 [^1]: Updating means manually changing the secret (both in the storage and the service it protects), e.g. when a password expires/is compromised/a devloper leaves/etc.
 
