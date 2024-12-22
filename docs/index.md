@@ -1,15 +1,13 @@
 
 
 [![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
-
-[![github](github-mark/github-mark.png)](https://github.com/thebjorn/seeqret)
+<a href="https://github.com/thebjorn/seeqret"><img src="github-mark/github-mark.png" width="25" height="25"></a>
 
 ![codecov](https://codecov.io/gh/thebjorn/seeqret/graphs/sunburst.svg?token=5PQOZLTSYD)
 
-# Seeqret: Safely transferring code secrets
+# <img src="seeqret-logo-256.png" width=100> Seeqret: Safely transferring code secrets
 (very much a work in progress)
 
-![Seeqret Logo](seeqret-logo-256.png)
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
