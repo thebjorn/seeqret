@@ -1,0 +1,10 @@
+_schema: https://static.datakortet.no/schema/dkbuild.schema.yaml
+
+package:
+  name: seeqret
+  description: Safely transferring code secrets
+  version: 0.0.1
+  created:
+
+build:
+  venv: seeqret
