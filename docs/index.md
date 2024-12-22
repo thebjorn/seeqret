@@ -22,7 +22,6 @@
 <!-- /code_chunk_output -->
 
 
-
 ## Introduction
 
 How do you communicate the set of secrets (passwords, API keys, etc.) that your code needs to run? You can't just write them in the code, because that would expose them to anyone who can read the code. You can't just send them in an email, because that would expose them to anyone who can read your email. You can't just write them on a sticky note, because that would expose them to anyone who can read your sticky note.
@@ -36,7 +35,7 @@ There are many ways to store and use secrets, e.g.:
 - **Key vaults**: E.g. Secureden or HashiCorp Vault (can be self hosted). These are usually expensive or complex to set up - or both. Key vaults usually have an API that you can use to get the secrets (setting this up is also expensive/complex/both).
 
 - **Secret management services**: These are hosted key vaults, e.g. AWS Secrets Manager, Google Secret manager, Azure Key Vault, or hosted HashiCorp Vault. There is always an associated api to read the secrets. This can incur significant costs for large numbers of secrets and/or high usage.
- 
+
 - **Encrypted files**: This is usually a key/value file (.json/.yaml), where only the values are encrypted (e.g. [SOPS](https://github.com/getsops/sops). Every developer must have the same key to be able to use the file, but the file can be stored in git/svn.
 
 ## Assumptions
@@ -45,14 +44,47 @@ You can make the following assumptions:
 - https is secure
 - the encryption algorithms are secure
 - encrypted directories (Windows) are secure
-  ```bat
+
+  ```bash
   attrib +I %1
   icacls %1 /grant %USERDOMAIN%\%USERNAME%:(F) /T
   icacls %1 /inheritance:r
   cipher /e %1
   ```
+
 - [encrypted private directories](https://help.ubuntu.com/community/EncryptedPrivateDirectory) (Ubuntu) are secure.
 - `0600` (read/write by owner only) directories (linux) are safe provided the user is not compromised.
+
+```bash
+Usage: seeqret [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  add          Add a new secret, key or user
+  export       Export the vault to a user
+  import-file  Import a vault from a file
+  init         Initialize a new vault
+  list         List the contents of the vault
+  upgrade      Upgrade the database to the latest version
+  users        List the users in the vault
+```
+
+```bash
+seeqret❱ seeqret add --help                                                                                                                                                                              seeqret   
+Usage: seeqret add [OPTIONS] COMMAND [ARGS]...
+
+  Add a new secret, key or user
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  key   Add a new key/value pair.
+  user  Add a new user to the vault from a public key.
+```
+
 
 ## Minimum Requirements
 1. different users/systems should have access to different subsets of the secrets.
