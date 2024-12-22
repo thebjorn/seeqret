@@ -1,7 +1,7 @@
 name: Seeqret CI/CD
 on:
   push
-permissions: read-all
+# permissions: read-all
 
 env:
   HOME_REPO: thebjorn/seeqret
@@ -60,12 +60,12 @@ jobs:
     # github runs both a push and a tag action and they somehow interefere with gh-pages, so skip tags?
     if: ${{ ! startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      actions: write
-      attestations: write
-      pull-requests: write
-      contents: write
+#    permissions:
+#      pages: write
+#      actions: write
+#      attestations: write
+#      pull-requests: write
+#      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -94,12 +94,12 @@ jobs:
       - test
 #      - build-docs
     runs-on: ubuntu-latest
-    permissions:
-      actions: write
-      packages: write
-      attestations: write
-      pull-requests: write
-      contents: write
+#    permissions:
+#      actions: write
+#      packages: write
+#      attestations: write
+#      pull-requests: write
+#      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
