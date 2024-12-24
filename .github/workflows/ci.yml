@@ -1,6 +1,5 @@
 name: Seeqret CI/CD
-on:
-  push
+on: [ push, pull_request, workflow_dispatch ]
 # permissions: read-all
 
 env:
@@ -111,9 +110,9 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
         with:
           artifacts: "dist/*"
-          owner: thebjorn
-          repo: seeqrets
-          token: ${{ secrets.GITHUB_TOKEN }}
+#          owner: thebjorn
+#          repo: seeqrets
+#          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to PyPI
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
