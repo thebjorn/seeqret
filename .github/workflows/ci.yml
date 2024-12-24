@@ -82,12 +82,14 @@ jobs:
       - test
 #      - build-docs
     runs-on: ubuntu-latest
-#    permissions:
-#      actions: write
-#      packages: write
-#      attestations: write
-#      pull-requests: write
-#      contents: write
+    permissions:
+      contents: write
+      deployments: write
+      metadata: write
+      actions: write
+      packages: write
+      attestations: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -107,10 +109,6 @@ jobs:
 
       - name: Create Github release
         uses: ncipollo/release-action@v1
-        permissions:
-          contents: write
-          deployments: write
-          metadata: write
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
         with:
           artifacts: "dist/*"
