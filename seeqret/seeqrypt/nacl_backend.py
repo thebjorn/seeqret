@@ -54,7 +54,6 @@ def save_private_key(fname: str, pkey: PrivateKey) -> bytes:
     return pkey
 
 
-
 def asymetric_encrypt_string(string: str,
                              sender_private_key: PrivateKey,
                              recipient_public_key: PublicKey) -> str:

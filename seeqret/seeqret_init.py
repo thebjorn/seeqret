@@ -28,6 +28,7 @@ DRIVE_TYPES = {
     6: 'Drive RAMdisk'
 }
 
+
 def _validate_vault_dir(dirname):
     # we can't store secrets in a vcs repository!
     vcs_dirs = ['.svn', '.git', '.hg', '.bzr']
@@ -43,7 +44,8 @@ def _validate_vault_dir(dirname):
         drive_type = win32file.GetDriveType(drive)
         if drive_type == 4:
             click.echo(f'{drive} is not a local drive, aborting.')
-            click.echo(f'win32file.GetDriveType("{drive}") returned {drive_type}.')
+            click.echo(f'win32file.GetDriveType("{drive}")'
+                       f' returned {drive_type}.')
             if not click.confirm('Do you want to continue?'):
                 abort()
 
