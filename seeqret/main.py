@@ -79,12 +79,8 @@ def import_file(fname):
 def init(dir, user, email, pubkey=None, key=None):
     """Initialize a new vault
     """
-    # ctx = Context()
     dirname = Path(dir).resolve()
     vault_dir = dirname / 'seeqret'
-    # ctx.vault_dir = vault_dir
-    # ctx.user = user
-    # ctx.email = email
 
     # we want to create dirname / seeqret
 

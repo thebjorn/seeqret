@@ -30,7 +30,8 @@ def test_load_private_key():
     # Test loading a valid private key
     valid_private_key = generate_private_key()
     save_private_key('test_load_private_key.key', valid_private_key)
-    save_public_key('test_load_public_key.key', valid_private_key)
+    pubkey = save_public_key('test_load_public_key.key', valid_private_key)
+    pubkey2 = public_key(pubkey.decode('ascii'))
 
     priv = load_private_key('test_load_private_key.key')
     pub = load_public_key('test_load_public_key.key')

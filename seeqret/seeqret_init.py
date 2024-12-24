@@ -18,6 +18,15 @@ from seeqret.seeqrypt.utils import generate_symetric_key
 
 from seeqret.utils import cd, is_encrypted, run, attrib_cmd, write_binary_file
 
+DRIVE_TYPES = {
+    0: 'Drive Unknown',
+    1: 'No Root Directory',
+    2: 'Drive Removable',
+    3: 'Drive Fixed',
+    4: 'Drive Network',
+    5: 'Drive CD',
+    6: 'Drive RAMdisk'
+}
 
 def _validate_vault_dir(dirname):
     # we can't store secrets in a vcs repository!
@@ -29,11 +38,14 @@ def _validate_vault_dir(dirname):
                 abort()
 
     if sys.platform == 'win32':
-        import win32file
+        from win32 import win32file
         drive = os.path.splitdrive(os.path.abspath(dirname))[0]
-        if not win32file.GetDriveType(drive) == 4:
+        drive_type = win32file.GetDriveType(drive)
+        if drive_type == 4:
             click.echo(f'{drive} is not a local drive, aborting.')
-            abort()
+            click.echo(f'win32file.GetDriveType("{drive}") returned {drive_type}.')
+            if not click.confirm('Do you want to continue?'):
+                abort()
 
 
 def secrets_init(dirname, user, email, pubkey=None, key=None):

@@ -16,14 +16,30 @@ def generate_private_key(fname=None) -> PrivateKey:
     return pkey
 
 
+def private_key(string: bytes) -> PrivateKey:
+    """Bytes to private key.
+    """
+    return PrivateKey(string, encoder=encoding.Base64Encoder)
+
+
+def public_key(string: str | bytes) -> PublicKey:
+    """Bytes to public key.
+    """
+    if isinstance(string, str):
+        string = string.encode('ascii')
+    return PublicKey(string, encoder=encoding.Base64Encoder)
+
+
 def load_private_key(fname: str) -> PrivateKey:
-    key = PrivateKey(read_binary_file(fname), encoder=encoding.Base64Encoder)
-    return key
+    """Load private key from file.
+    """
+    return private_key(read_binary_file(fname))
 
 
 def load_public_key(fname: str) -> PublicKey:
-    key = PublicKey(read_binary_file(fname), encoder=encoding.Base64Encoder)
-    return key
+    """Load public key from file.
+    """
+    return public_key(read_binary_file(fname))
 
 
 def save_public_key(fname: str, pkey: PrivateKey) -> bytes:
@@ -37,13 +53,6 @@ def save_private_key(fname: str, pkey: PrivateKey) -> bytes:
     write_binary_file(fname, pkey)
     return pkey
 
-
-def private_key(string: bytes) -> PrivateKey:
-    return PrivateKey(string, encoder=encoding.Base64Encoder)
-
-
-def public_key(string: str) -> PublicKey:
-    return PublicKey(string.encode('ascii'), encoder=encoding.Base64Encoder)
 
 
 def asymetric_encrypt_string(string: str,
