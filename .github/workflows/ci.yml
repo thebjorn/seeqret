@@ -107,6 +107,10 @@ jobs:
 
       - name: Create Github release
         uses: ncipollo/release-action@v1
+        permissions:
+          contents: write
+          deployments: write
+          metadata: write
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
         with:
           artifacts: "dist/*"
