@@ -85,7 +85,6 @@ jobs:
     permissions:
       contents: write
       deployments: write
-      metadata: write
       actions: write
       packages: write
       attestations: write
