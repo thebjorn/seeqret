@@ -3,7 +3,7 @@ import sqlite3
 
 from seeqret.seeqrypt.aes_fernet import decrypt_string
 from seeqret.seeqrypt.utils import load_symetric_key
-from seeqret.utils import cd
+from seeqret.run_utils import cd
 
 
 def get(key, app='*', env='*'):

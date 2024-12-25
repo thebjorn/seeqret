@@ -4,8 +4,8 @@ from pathlib import Path
 import click
 
 # from .context import Context
-from . import seeqret_init, seeqret_add
-from .utils import is_writable, cd, read_json
+from . import seeqret_init, seeqret_add, cd
+from .fileutils import is_writable, read_json
 
 DIRNAME = Path(__file__).parent
 
@@ -71,7 +71,9 @@ def import_file(fname):
 @click.option(
     '--user',
     prompt=True,
-    default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}"
+    envvar='USERNAME',
+    type=str,
+    # default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}"
 )
 @click.option('--email', prompt=True)
 @click.option('--pubkey', default=None)

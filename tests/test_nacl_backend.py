@@ -14,7 +14,7 @@ from seeqret.seeqrypt.nacl_backend import (
     sign_message,
     hash_message,
 )
-from seeqret.utils import remove_file_if_exists
+from seeqret.fileutils import remove_file_if_exists
 
 
 def test_generate_private_key():

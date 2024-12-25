@@ -24,10 +24,12 @@ jobs:
 
   test:
     name: Run tests and upload coverage reports to Codecov
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         python-version: ['3.12', '3.13']
+        # ubuntu-24.04 will soon be ubuntu-latest 2024-12-25
+        os: [ubuntu-24.04, windows-latest]
 
     steps:
       - uses: actions/checkout@v4

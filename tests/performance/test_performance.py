@@ -3,7 +3,7 @@ import os
 import seeqret
 from seeqret.seeqret_add import add_key
 from seeqret.seeqret_init import init_db, create_user_keys
-from seeqret.utils import remove_file_if_exists
+from seeqret.fileutils import remove_file_if_exists
 
 
 # create a seeqret db and fill it with 500 secrets

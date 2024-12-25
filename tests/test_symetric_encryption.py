@@ -2,7 +2,7 @@ import pytest
 
 from seeqret.seeqrypt.aes_fernet import encrypt_string, decrypt_string
 from seeqret.seeqrypt.utils import format_encrypted_data, get_or_create_symetric_key
-from seeqret.utils import remove_file_if_exists
+from seeqret.fileutils import remove_file_if_exists
 
 COUNTER = 0
 

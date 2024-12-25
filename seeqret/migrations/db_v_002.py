@@ -1,6 +1,6 @@
 import sqlite3
 import click
-from seeqret.utils import cd
+from .. import cd
 from .utils import (
     column_exists,
 )

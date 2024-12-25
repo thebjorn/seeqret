@@ -16,7 +16,9 @@ from seeqret.seeqrypt.nacl_backend import (
 )
 from seeqret.seeqrypt.utils import generate_symetric_key
 
-from seeqret.utils import cd, is_encrypted, run, attrib_cmd, write_binary_file
+from seeqret.fileutils import is_encrypted, attrib_cmd, write_binary_file
+from seeqret.run_utils import run
+from seeqret import cd
 
 DRIVE_TYPES = {
     0: 'Drive Unknown',

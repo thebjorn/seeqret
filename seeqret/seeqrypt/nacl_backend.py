@@ -3,7 +3,7 @@ from nacl.public import PrivateKey, Box, PublicKey
 from nacl import encoding
 from nacl.signing import SigningKey
 
-from seeqret.utils import write_binary_file, read_binary_file
+from seeqret.fileutils import write_binary_file, read_binary_file
 
 
 def generate_private_key(fname=None) -> PrivateKey:
