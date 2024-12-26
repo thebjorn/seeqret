@@ -3,9 +3,11 @@ from pathlib import Path
 
 import click
 
+import seeqret.seeqret_transfer
 # from .context import Context
 from . import seeqret_init, seeqret_add, cd
 from .fileutils import is_writable, read_json
+from .filterspec import FilterSpec
 
 DIRNAME = Path(__file__).parent
 
@@ -27,11 +29,13 @@ def upgrade():
 
 
 @cli.command()
-def list():
+@click.option('-f', '--filter', default='*', show_default=True,
+              help='filterspec (see XXX)')
+def list(filter):
     """List the contents of the vault
     """
     with cd(os.environ['SEEQRET']):
-        return seeqret_add.list_secrets()
+        return seeqret_add.list_secrets(FilterSpec(filter))
 
 
 @cli.command()
@@ -45,11 +49,13 @@ def users():
 
 @cli.command()
 @click.argument('to')
+@click.option('--filter', default='',
+              help='A seeqret filter string (see XXX) ')
 def export(to):
     """Export the vault to a user
     """
     with cd(os.environ['SEEQRET']):
-        seeqret_add.export_secrets(to)
+        seeqret.seeqret_transfer.export_secrets(to)
 
 
 @cli.command()
@@ -59,7 +65,7 @@ def import_file(fname):
     """
     text = read_json(fname)
     with cd(os.environ['SEEQRET']):
-        seeqret_add.import_secrets(text)
+        seeqret.seeqret_transfer.import_secrets(text)
 
 
 @cli.command()
@@ -76,8 +82,8 @@ def import_file(fname):
     # default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}"
 )
 @click.option('--email', prompt=True)
-@click.option('--pubkey', default=None)
-@click.option('--key', default=None)
+@click.option('--pubkey', default=None, show_default=True)
+@click.option('--key', default=None, show_default=True)
 def init(dir, user, email, pubkey=None, key=None):
     """Initialize a new vault
     """
@@ -117,15 +123,19 @@ def add():
 
 
 @add.command()
-@click.option('--url', prompt=True)
-@click.option('--username', prompt=True)
-@click.option('--email', prompt=True)
-def user(url, username, email):
+@click.pass_context
+@click.option('--url', prompt=True,
+              help='URL that contains (only) the public key (as text)')
+@click.option('--username', prompt=True,
+              help='Username to record')
+@click.option('--email', prompt=True,
+              help='Email for the user')
+def user(ctx, url, username, email):
     """Add a new user to the vault from a public key.
 
        If the public key is on github, the url is the raw url, e.g.
 
-       https://raw.githubusercontent.com/username/project/refs/heads/main/public.key
+       https://raw.githubusercontent.com/user/project/refs/heads/main/public.key
     """
     click.echo(f'Adding a new user, from {url}')
     with cd(os.environ['SEEQRET']):
@@ -134,13 +144,24 @@ def user(url, username, email):
         seeqret_add.add_user(pubkey, username, email)
 
 
+@cli.command()
+@click.pass_context
+@click.argument('url')
+def fetch(ctx, url):
+    seeqret_add.fetch_pubkey_from_url(url)
+
 @add.command()
 @click.argument('name')
 @click.argument('value')
-@click.option('--app', default='*')
-@click.option('--env', default='*')
+@click.option('--app', default='*', show_default=True,
+              help='The app to add the secret to')
+@click.option('--env', default='*', show_default=True,
+              help='The env(ironment) to add the secret to (e.g. dev/prod)')
 def key(name: str, value: str, app: str = None, env: str = None):
-    """Add a new key/value pair.
+    """Add a new NAME -> VALUE mapping.
+
+       You can (should) specify the app and environment properties when adding
+       a new mapping.
     """
     click.echo(
         f'Adding a new key: {name}, value: {value}, app: {app}, env: {env}'

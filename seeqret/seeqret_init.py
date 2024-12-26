@@ -7,7 +7,7 @@ import os
 import sys
 
 from seeqret.migrations.initialize_database import init_db
-from seeqret.seeqret_add import fetch_admin
+from seeqret.db_utils import fetch_admin
 from seeqret.seeqrypt.nacl_backend import (
     generate_private_key,
     private_key,
@@ -52,6 +52,7 @@ def _validate_vault_dir(dirname):
                 abort()
 
 
+# seeqret init
 def secrets_init(dirname, user, email, pubkey=None, key=None):
     # dirname is the parent of seeqret..!
     seeqret_dir = dirname / 'seeqret'
@@ -108,6 +109,7 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
     click.echo('\n\nin the current window to continue here.')
 
 
+# seeqret upgrade
 def upgrade_db():
     with cd(os.environ['SEEQRET']):
         cn = sqlite3.connect('seeqrets.db')
