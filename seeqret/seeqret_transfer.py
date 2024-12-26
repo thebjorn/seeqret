@@ -1,11 +1,11 @@
 import json
 import sqlite3
-from os import abort
 
 import click
 
 from seeqret import load_symetric_key, decrypt_string
 from seeqret.db_utils import fetch_admin, fetch_user
+from seeqret.filterspec import FilterSpec
 from seeqret.seeqret_add import add_user, add_key
 from seeqret.seeqrypt.nacl_backend import (
     public_key, load_private_key, asymetric_decrypt_string, hash_message,
@@ -104,11 +104,20 @@ def import_secrets(indata):
         )
 
 
-def verify_hash(hash: bytes, message):
+def verify_hash(hash: str, message):
     msg = _extract_data(message)
-    if hash != hash_message(msg.encode('utf-8')):
-        click.secho('Invalid hash', fg='red')
-        abort()
+    h = hash_message(msg.encode('utf-8'))
+    if hash != h:
+        msg = f'Invaolid hash ({hash}) expected: {h}'
+        ctx = None
+        try:
+            ctx = click.get_current_context()
+        except RuntimeError:
+            pass
+        if ctx is not None:
+            ctx.fail(click.style(msg, fg='red'))
+        else:
+            raise RuntimeError(msg)
     return True
 
 
@@ -128,14 +137,14 @@ def _extract_data(message):
     return msg
 
 
-def hash_secrets_message(message):
+def hash_secrets_message(message) -> str:
     """Hash all message values.
     """
     msg = _extract_data(message)
     return hash_message(msg.encode('utf-8'))
 
 
-def export_secrets(to: str):
+def export_secrets(to: str, fspec: FilterSpec):
     """seeqret export <user>
 
        Exports secrets from a SQLite database, preparing them for secure
@@ -186,7 +195,7 @@ def export_secrets(to: str):
     res['from'] = admin
     res['to'] = dict(username=to if to != 'self' else admin['username'])
 
-    for (app, env, key, value) in secrets:
+    for (app, env, key, value) in fspec.filter(secrets):
         val = decrypt_string(cipher, value).decode('utf-8')
         res['data'].append(dict(app=app, env=env, key=key, val=val))
     cn.close()

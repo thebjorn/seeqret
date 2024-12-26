@@ -100,7 +100,10 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
             else:
                 click.secho('seeqret.key creation failed', fg='red')
                 abort()
-        run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
+        if os.environ.get('TESTING', "") == "TRUE":
+            os.environ["SEEQRET"] = os.path.abspath(vault_dir)
+        else:
+            run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
     click.echo("I've set the SEEQRET environment variable to the vault "
                "directory")
     click.echo("Please close this window and open a new one to continue.")

@@ -125,7 +125,7 @@ def add_user(pubkey, username, email):
         cn.commit()
 
     usr = cn.execute('''
-        SELECT * FROM users WHERE username = ?'
+        SELECT * FROM users WHERE username = ?
     ''', (username,)).fetchone()
     click.secho('User added:', fg='green')
     click.secho(f'    {usr}', fg='green')

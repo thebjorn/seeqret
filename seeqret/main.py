@@ -49,18 +49,19 @@ def users():
 
 @cli.command()
 @click.argument('to')
-@click.option('--filter', default='',
+@click.option('-f', '--filter', default='',
               help='A seeqret filter string (see XXX) ')
-def export(to):
+def export(to, filter):
     """Export the vault to a user
     """
     with cd(os.environ['SEEQRET']):
-        seeqret.seeqret_transfer.export_secrets(to)
+        seeqret.seeqret_transfer.export_secrets(to, FilterSpec(filter))
 
 
 @cli.command()
+@click.pass_context
 @click.argument('fname')
-def import_file(fname):
+def import_file(ctx, fname):
     """Import a vault from a file
     """
     text = read_json(fname)
@@ -69,6 +70,7 @@ def import_file(fname):
 
 
 @cli.command()
+@click.pass_context
 @click.argument(
     'dir',
     default='.',
@@ -84,7 +86,7 @@ def import_file(fname):
 @click.option('--email', prompt=True)
 @click.option('--pubkey', default=None, show_default=True)
 @click.option('--key', default=None, show_default=True)
-def init(dir, user, email, pubkey=None, key=None):
+def init(ctx, dir, user, email, pubkey=None, key=None):
     """Initialize a new vault
     """
     dirname = Path(dir).resolve()
@@ -93,20 +95,22 @@ def init(dir, user, email, pubkey=None, key=None):
     # we want to create dirname / seeqret
 
     if not dirname.exists():
-        click.echo(f'The parent of the vault: {dirname} must exist.')
-        return
+        # click.echo(f'The parent of the vault: {dirname} must exist.')
+        ctx.fail(f'The parent of the vault: {dirname} must exist.')
+        # return
 
     if not is_writable(dirname):
-        click.echo(f'The parent of the vault: {dirname} must be writable.')
-        return
+        # click.echo(f'The parent of the vault: {dirname} must be writable.')
+        ctx.fail(f'The parent of the vault: {dirname} must be writable.')
+        # return
 
     if vault_dir.exists():
         if not is_writable(vault_dir):
-            click.echo(
+            ctx.fail(
                 f'The vault: {vault_dir} exists and is not writeable, '
                 'you must delete it manually.'
             )
-            return
+            # return
         click.confirm(
             f'The vault: {vault_dir} already exists, overwrite contents?',
             default=True, abort=True)
