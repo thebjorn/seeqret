@@ -1,3 +1,5 @@
+import re
+
 from click.testing import CliRunner
 from seeqret.main import cli, init
 
@@ -20,8 +22,9 @@ def test_init_no_dir():
     runner = CliRunner(env=dict(TESTING="TRUE"))
 
     result = runner.invoke(init, [
-        'c:/this/path/does/not/exist',
+        '/this/path/does/not/exist',
         '--user=test',
         '--email=test@example.com',
     ])
-    assert r'Error: The parent of the vault: C:\this\path\does\not\exist must exist.' in result.output
+
+    assert re.search(r'Error: The parent of the vault: .*? must exist.', result.output)
