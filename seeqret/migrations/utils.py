@@ -23,8 +23,8 @@ def index_exists(cn, table_name, index_name):
     c = cn.cursor()
     c.execute(f"""
         select count(*)
-        from pragma_table_info("{table_name}")
-        where name = "{index_name}"
+        from sqlite_master
+        where type="index" and name="{index_name}"
     """)
     return c.fetchone()[0] > 0
 
