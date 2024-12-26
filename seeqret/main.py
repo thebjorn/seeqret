@@ -148,7 +148,9 @@ def user(ctx, url, username, email):
 @click.pass_context
 @click.argument('url')
 def fetch(ctx, url):
+    # XXX: remove me, for debugging...
     seeqret_add.fetch_pubkey_from_url(url)
+
 
 @add.command()
 @click.argument('name')

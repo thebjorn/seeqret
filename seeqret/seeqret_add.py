@@ -18,7 +18,7 @@ def fetch_pubkey_from_url(url):
         ctx = None
         try:
             ctx = click.get_current_context()
-        except:
+        except AttributeError:
             # during testing we don't neccessarily have a context...
             raise RuntimeError(f'Could not fetch pubkey from url: {url}')
         ctx.fail(click.style(f'Failed to fetch public key: {url}', fg='red'))
