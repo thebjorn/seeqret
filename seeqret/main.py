@@ -86,7 +86,12 @@ def import_file(ctx, fname):
 @click.option('--email', prompt=True)
 @click.option('--pubkey', default=None, show_default=True)
 @click.option('--key', default=None, show_default=True)
-def init(ctx, dir, user, email, pubkey=None, key=None):
+def init(ctx: click.Context,
+         dir: str,
+         user: str,
+         email: str,
+         pubkey: str | None = None,
+         key: str | None = None):
     """Initialize a new vault
     """
     dirname = Path(dir).resolve()
@@ -137,7 +142,7 @@ def add():
 def user(ctx, url, username, email):
     """Add a new user to the vault from a public key.
 
-       If the public key is on github, the url is the raw url, e.g.
+       If the public key is on GitHub, the url is the raw url, e.g.
 
        https://raw.githubusercontent.com/user/project/refs/heads/main/public.key
     """
