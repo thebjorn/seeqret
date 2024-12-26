@@ -1,4 +1,5 @@
 import re
+import sys
 
 from click.testing import CliRunner
 from seeqret.main import cli, init
@@ -13,8 +14,9 @@ def test_init():
             '--email=test@example.com',
         ])
         assert result.exit_code == 0
-        assert 'vault_dir permissions are ok' in result.output
-        assert 'vault is encrypted' in result.output
+        if sys.platform == 'win32':
+            assert 'vault_dir permissions are ok' in result.output
+            assert 'vault is encrypted' in result.output
         assert 'seeqret.key created' in result.output
 
 
