@@ -1,7 +1,19 @@
 # Safely transferring code secrets
 (very much a work in progress)
 
+![cicd](https://github.com/thebjorn/seeqret/actions/workflows/ci.yml/badge.svg)
 [![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
+[![pypi](https://img.shields.io/pypi/v/seeqret?label=pypi%20seeqret)](https://pypi.org/project/seeqret/)
+[![downloads](https://pepy.tech/badge/seeqret)](https://pepy.tech/project/seeqret)
+<a href="https://github.com/thebjorn/seeqret"><img src="docs/github-mark/github-mark.png" width="25" height="25"></a>
+
+![codecov](https://codecov.io/gh/thebjorn/seeqret/graphs/sunburst.svg?token=5PQOZLTSYD)
+
+<img src="docs/seeqret-logo-256.png" width=100 style="float:right">
+
+# Seeqret: Safely transferring code secrets
+(very much a work in progress)
+
 
 ![Seeqret Logo](docs/seeqret-logo-256.png)
 
@@ -34,7 +46,7 @@ There are many ways to store and use secrets, e.g.:
 - **Key vaults**: E.g. Secureden or HashiCorp Vault (can be self hosted). These are usually expensive or complex to set up - or both. Key vaults usually have an API that you can use to get the secrets (setting this up is also expensive/complex/both).
 
 - **Secret management services**: These are hosted key vaults, e.g. AWS Secrets Manager, Google Secret manager, Azure Key Vault, or hosted HashiCorp Vault. There is always an associated api to read the secrets. This can incur significant costs for large numbers of secrets and/or high usage.
- 
+
 - **Encrypted files**: This is usually a key/value file (.json/.yaml), where only the values are encrypted (e.g. [SOPS](https://github.com/getsops/sops). Every developer must have the same key to be able to use the file, but the file can be stored in git/svn.
 
 ## Assumptions

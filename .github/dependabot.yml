@@ -1,0 +1,21 @@
+# Please see the documentation for all configuration options:
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: 'github-actions'
+    # default location of '.github/workflows'
+    directory: '/'
+    open-pull-requests-limit: 5
+    schedule:
+      interval: 'weekly'
+
+  # enable version updates for python
+  - package-ecosystem: "pip"
+    directory: ""
+    open-pull-requests-limit: 5
+    # check for updates once per week
+    schedule:
+      interval: "daily"
+
+# created from a sample from [Pipeline Foundation](https://pipeline.foundation)

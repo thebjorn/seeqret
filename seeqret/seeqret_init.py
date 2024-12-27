@@ -7,7 +7,7 @@ import os
 import sys
 
 from seeqret.migrations.initialize_database import init_db
-from seeqret.seeqret_add import fetch_admin
+from seeqret.db_utils import fetch_admin
 from seeqret.seeqrypt.nacl_backend import (
     generate_private_key,
     private_key,
@@ -16,7 +16,19 @@ from seeqret.seeqrypt.nacl_backend import (
 )
 from seeqret.seeqrypt.utils import generate_symetric_key
 
-from seeqret.utils import cd, is_encrypted, run, attrib_cmd, write_binary_file
+from seeqret.fileutils import is_encrypted, attrib_cmd, write_binary_file
+from seeqret.run_utils import run
+from seeqret import cd
+
+DRIVE_TYPES = {
+    0: 'Drive Unknown',
+    1: 'No Root Directory',
+    2: 'Drive Removable',
+    3: 'Drive Fixed',
+    4: 'Drive Network',
+    5: 'Drive CD',
+    6: 'Drive RAMdisk'
+}
 
 
 def _validate_vault_dir(dirname):
@@ -29,13 +41,18 @@ def _validate_vault_dir(dirname):
                 abort()
 
     if sys.platform == 'win32':
-        import win32file
+        from win32 import win32file
         drive = os.path.splitdrive(os.path.abspath(dirname))[0]
-        if not win32file.GetDriveType(drive) == 4:
+        drive_type = win32file.GetDriveType(drive)
+        if drive_type == 4:
             click.echo(f'{drive} is not a local drive, aborting.')
-            abort()
+            click.echo(f'win32file.GetDriveType("{drive}")'
+                       f' returned {drive_type}.')
+            if not click.confirm('Do you want to continue?'):
+                abort()
 
 
+# seeqret init
 def secrets_init(dirname, user, email, pubkey=None, key=None):
     # dirname is the parent of seeqret..!
     seeqret_dir = dirname / 'seeqret'
@@ -59,6 +76,8 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
         else:
             click.echo(f'Creating keys for {user}')
             if key:
+                # FIXME: use the nacl_backend functions
+                #        for reading/writing keys?
                 write_binary_file('private.key', key.encode('ascii'))
                 pkey = private_key(key)
             else:
@@ -81,14 +100,19 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
             else:
                 click.secho('seeqret.key creation failed', fg='red')
                 abort()
-        run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
-    click.echo("I've set the SEEQRET env variable to the vault directory")
+        if os.environ.get('TESTING', "") == "TRUE":
+            os.environ["SEEQRET"] = os.path.abspath(vault_dir)
+        else:
+            run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
+    click.echo("I've set the SEEQRET environment variable to the vault "
+               "directory")
     click.echo("Please close this window and open a new one to continue.")
     click.echo('or run\n\n')
     click.echo(f'    set "SEQRET={os.path.abspath(vault_dir)}"')
     click.echo('\n\nin the current window to continue here.')
 
 
+# seeqret upgrade
 def upgrade_db():
     with cd(os.environ['SEEQRET']):
         cn = sqlite3.connect('seeqrets.db')

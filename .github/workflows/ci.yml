@@ -1,7 +1,5 @@
-name: Python Tests
-
-on:
-  push
+name: Seeqret CI/CD
+on: [ push, pull_request, workflow_dispatch ]
 
 env:
   HOME_REPO: thebjorn/seeqret
@@ -9,11 +7,11 @@ env:
 jobs:
   lint:
     name: Run linting
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -26,16 +24,18 @@ jobs:
 
   test:
     name: Run tests and upload coverage reports to Codecov
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         python-version: ['3.12', '3.13']
+        # ubuntu-24.04 will soon be ubuntu-latest 2024-12-25
+        os: [ubuntu-24.04, windows-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -50,59 +50,48 @@ jobs:
           pytest -vv --cov=seeqret --cov-report=xml tests/
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@1e68e06f1dbfde0e4cefc87efeba9e4643565303  # v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
   build-docs:
     name: Build docs and deploy to gh-pages
-    runs-on: ubuntu-latest
+    # github runs both a push and a tag action and they somehow interefere with gh-pages, so skip tags?
+    if: ${{ ! startsWith(github.ref, 'refs/tags/v') }}
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.12'
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -e .
-      - name: Build docs
-        run: |
-          git pull --ff
-          mkdocs build
-      - name: Deploy docs
-        run: |
-          mkdocs gh-deploy
+      - name: Checkout main
+        uses: actions/checkout@v4
 
-  publish-docs:
-    name: Publish docs to gh-pages
-    needs: build-docs
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy-pages.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: gh-pages
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-      - name: Deploy it to Github pages
-        uses: actions/deploy-pages@v4
+      - name: Deploy docs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        # uses: mhausenblas/mkdocs-deploy-gh-pages@nomaterial
+        # Or use mhausenblas/mkdocs-deploy-gh-pages@nomaterial to build without the mkdocs-material theme
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CUSTOM_DOMAIN: optionaldomain.com
+          # CONFIG_FILE: folder/mkdocs.yml
+          # EXTRA_PACKAGES: build-base
+          # GITHUB_DOMAIN: github.myenterprise.com
+          # REQUIREMENTS: folder/requirements.txt
 
   publish:
     name: Publish package to PyPI
-    runs-on: ubuntu-latest
+    needs:
+      - test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      deployments: write
+      actions: write
+      packages: write
+      attestations: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -116,17 +105,14 @@ jobs:
           name: Packages
           path: dist/
 
-      - name: Deploy to PyPI
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
-        shell: bash
-        run: |
-          twine upload -u __token__ -p ${{ secrets.PYPI_API_TOKEN }} dist/*
-
       - name: Create Github release
         uses: ncipollo/release-action@v1
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
         with:
           artifacts: "dist/*"
-          owner: thebjorn
-          repo: pydeps
-          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy to PyPI
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == env.HOME_REPO
+        shell: bash
+        run: |
+          twine upload -u __token__ -p ${{ secrets.PYPI_API_TOKEN }} dist/*

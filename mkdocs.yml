@@ -1,1 +1,8 @@
 site_name: Seeqret docs
+nav:
+  - Home: index.md
+  - Background: background.md
+  - Requirements: requirements.md
+  - Command reference: commands.md
+  - Filter spec: filter-strings.md
+  - References: references.md

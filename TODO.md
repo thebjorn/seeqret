@@ -8,17 +8,23 @@
 - [x] Export app:env(key:value) pair to foreign user
 - [x] import export file
 
+- [ ] backup
+- [ ] multi-signature secrets
+- [ ] pluggable storage backends
+- [ ] pluggable export/import formats
+- [ ] pluggable backup backends
+
 # Design
 
-- [ ] `seeqret list --filter ...`
-- [ ] `seeqret export to --filter ...`
-  - [ ] Filters: `::key == *:*:key` (all keys matching key regardless of app:env), 
-  - [ ] `myapp:dev:*` (all keys for myapp in dev)
-  - [ ] `myapp-*::` (all keys for myapp-sales, myapp-marketing, etc)
+- [x] `seeqret list --filter ...`
+- [x] `seeqret export to --filter ...`
+  - [x] Filters: `::key == *:*:key` (all keys matching key regardless of app:env),
+  - [x] `myapp:dev:*` (all keys for myapp in dev)
+  - [x] `myapp-*::` (all keys for myapp-sales, myapp-marketing, etc)
 - [ ] `seeqret import ...` selectively
 - [ ] `seeqret update --filter <filter> --set env=prod`
 - [ ] more convenient export/import
-
+- [ ] is there a way to do ACLs
 
 ## commands
 
@@ -32,6 +38,8 @@ in another directory
 ```
 
 ### add user
+**Note:** the url here is suspect (no proof of ownership).
+
 ```bash
   seeqret add user --url https://raw.githubusercontent.com/tkbeorg/tkbe/refs/heads/main/public.key --username tkbe --email bjorn@tkbe.org
   seeqret add user --username bp --email bp@norsktest.no --url https://gitlab.com/thebjorn/public/-/raw/main/public.key?ref_type=heads
