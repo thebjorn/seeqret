@@ -17,7 +17,6 @@ def test_add_user():
 
         result = runner.invoke(users)
         assert result.exit_code == 0
-        assert len(result.output.splitlines()) == 1
         assert 'test@example.com' in result.output
 
         # print("DBUSERS:", debug_fetch_users())

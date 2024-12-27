@@ -1,4 +1,7 @@
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def glob_to_regex(glob_pattern: str) -> str:
@@ -47,7 +50,14 @@ class FilterSpec:
             self.env = parts[1] or '*'
             self.name = parts[2] or '*'
 
-        print("FILTERSPEC:", filterspec, '==', str(self))
+        logger.debug("FILTERSPEC: %s == %s", filterspec, str(self))
+
+    def to_filterdict(self):
+        return dict(
+            app=self.app,
+            env=self.env,
+            key=self.name,
+        )
 
     def __str__(self):
         return self.app + ':' + self.env + ':' + self.name

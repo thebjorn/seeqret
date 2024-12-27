@@ -1,23 +1,33 @@
+import json
 import os
 from pathlib import Path
 
 import click
+from click import Context
 
 import seeqret.seeqret_transfer
 # from .context import Context
 from . import seeqret_init, seeqret_add, cd
 from .fileutils import is_writable, read_json
 from .filterspec import FilterSpec
+import logging
+
 
 DIRNAME = Path(__file__).parent
 
-# os.environ['SEEQRET'] = os.getcwd() + r'\seeqret'
-
 
 @click.group()
-# @click.pass_context
-def cli():
-    pass
+@click.pass_context
+@click.option('-L', '--log', default="ERROR")
+def cli(ctx, log):
+    logging.basicConfig(level=getattr(logging, log))
+
+
+@cli.command()
+def info():
+    with Context(cli) as ctx:
+        info = ctx.to_info_dict()
+        print(json.dumps(info, indent=4))
 
 
 @cli.command()
@@ -174,9 +184,11 @@ def key(name: str, value: str, app: str = None, env: str = None):
        You can (should) specify the app and environment properties when adding
        a new mapping.
     """
+    print("KEY::")
     click.echo(
         f'Adding a new key: {name}, value: {value}, app: {app}, env: {env}'
     )
 
     with cd(os.environ['SEEQRET']):
+        print("CALLING:seeqret_add.add_key", name, value, app, env)
         seeqret_add.add_key(name, value, app, env)
