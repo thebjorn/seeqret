@@ -7,7 +7,7 @@ import collections
 import datetime
 import decimal
 import json
-import re
+# import re
 
 # # Call JSON.parse() if dk.jason.parse() is not available
 # # (the re.sub() call removes all spaces, which is currently safe).
@@ -34,7 +34,7 @@ class DkJSONEncoder(json.JSONEncoder):
     """Handle special cases, like Decimal...
     """
 
-    def default(self, o):  # pylint:disable=too-many-branches,too-many-return-statements
+    def default(self, o):
 
         if isinstance(o, decimal.Decimal):
             return float(o)
@@ -54,8 +54,9 @@ class DkJSONEncoder(json.JSONEncoder):
                         kind="TIME")
 
         if hasattr(o, '__dict__'):
-            return {k: v for k, v in o.__dict__.items()
-                        if not k.startswith('_')}
+            return {k: v
+                    for k, v in o.__dict__.items()
+                    if not k.startswith('_')}
 
         if isinstance(o, collections.abc.Mapping):
             return dict(o)
@@ -96,6 +97,8 @@ def dump2(val, **kw):
 # ''', re.VERBOSE)
 #
 #
+
+
 def obj_decoder(pairs):
     """Reverses values created by DkJSONEncoder.
     """
