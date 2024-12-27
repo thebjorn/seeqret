@@ -1,4 +1,5 @@
 from ..seeqrypt.aes_fernet import decrypt_string
+from ..seeqrypt.nacl_backend import asymetric_encrypt_string
 from ..seeqrypt.utils import load_symetric_key
 import logging
 
@@ -26,6 +27,9 @@ class Secret:
         return (f'Secret({self.app}, {self.env}, '
                 f'{self.key}, {self.value}, {self.type})')
 
+    def __repr__(self):
+        return f'{self.app}:{self.env}:{self.key}:{self.type}:{self.value}'
+
     def __json__(self):
         return dict(
             app=self.app,
@@ -41,6 +45,11 @@ class Secret:
         # logger.debug('decrypting: %s %s', self._value, type(self._value))
         val = decrypt_string(cipher, self._value).decode('utf-8')
         return cnvt(self.type, val)
+
+    def encrypt_value(self, sender_pkey, receiver_pubkey):
+        return asymetric_encrypt_string(
+            self.value, sender_pkey, receiver_pubkey
+        )
 
     @property
     def row(self):

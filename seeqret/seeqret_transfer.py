@@ -1,16 +1,16 @@
-import json
 import sqlite3
 
 import click
 
-from seeqret import load_symetric_key, decrypt_string
 from seeqret.db_utils import fetch_admin, fetch_user
 from seeqret.filterspec import FilterSpec
+from seeqret.models import jason
 from seeqret.seeqret_add import add_user, add_key
 from seeqret.seeqrypt.nacl_backend import (
     public_key, load_private_key, asymetric_decrypt_string, hash_message,
-    asymetric_encrypt_string,
 )
+from seeqret.serializers.jsoncrypt_serializer import JsonCryptSerializer
+from seeqret.storage.sqlite_storage import SqliteStorage
 
 
 def _validate_import_file(indata):
@@ -137,11 +137,11 @@ def _extract_data(message):
     return msg
 
 
-def hash_secrets_message(message) -> str:
-    """Hash all message values.
-    """
-    msg = _extract_data(message)
-    return hash_message(msg.encode('utf-8'))
+# def hash_secrets_message(message) -> str:
+#     """Hash all message values.
+#     """
+#     msg = _extract_data(message)
+#     return hash_message(msg.encode('utf-8'))
 
 
 def export_secrets(to: str, fspec: FilterSpec):
@@ -169,43 +169,25 @@ def export_secrets(to: str, fspec: FilterSpec):
            encryption/decryption processes, or key-loading operations,
            depending on implementation details not shown here.
     """
-    cipher = load_symetric_key('seeqret.key')
+    storage = SqliteStorage()
     sender_pkey = load_private_key('private.key')
 
-    cn = sqlite3.connect('seeqrets.db')
+    admin = storage.fetch_admin()
     if to == 'self':
-        admin = fetch_admin(cn)
-        pubkey_string = admin['pubkey']
+        receiver = admin
     else:
-        user_pubkey = cn.execute('''
-            select pubkey from users where username = ?
-        ''', (to,)).fetchone()
-        pubkey_string = user_pubkey[0]
+        receiver = storage.fetch_users(username=to)[0]
+    receiver_pubkey = receiver.public_key
 
-    # convert string to public key object pkcs1
-    receiver_pubkey = public_key(pubkey_string)
+    serializer = JsonCryptSerializer(
+        sender=admin,   # XXX: use User objects containing keys?
+        receiver=to,
+        sender_private_key=sender_pkey,
+        receiver_public_key=receiver_pubkey
+    )
 
-    secrets = cn.execute('''
-        select app, env, key, value
-        from secrets
-    ''').fetchall()
-    admin = fetch_admin(cn)
+    secrets = storage.fetch_secrets(**fspec.to_filterdict())
+    res = serializer.dumps(secrets)
 
-    res = dict(data=[])
-    res['from'] = admin
-    res['to'] = dict(username=to if to != 'self' else admin['username'])
-
-    for (app, env, key, value) in fspec.filter(secrets):
-        val = decrypt_string(cipher, value).decode('utf-8')
-        res['data'].append(dict(app=app, env=env, key=key, val=val))
-    cn.close()
-
-    res["signature"] = hash_secrets_message(res)
-
-    for item in res["data"]:
-        item["val"] = asymetric_encrypt_string(
-            item['val'], sender_pkey, receiver_pubkey
-        )
-
-    click.echo(json.dumps(res, indent=4))
+    click.echo(jason.dumps(res, indent=4))
     return res

@@ -1,9 +1,15 @@
+from seeqret.seeqrypt.nacl_backend import public_key
+
 
 class User:
     def __init__(self, username: str, email: str, pubkey: str):
         self.username = username
         self.email = email
         self.pubkey = pubkey
+
+    @property
+    def public_key(self):
+        return public_key(self.pubkey)
 
     @property
     def row(self):
