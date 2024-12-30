@@ -7,12 +7,14 @@
 - [x] Add app:env(key:value) pair
 - [x] Export app:env(key:value) pair to foreign user
 - [x] import export file
-
+---
 - [ ] backup
 - [ ] multi-signature secrets
 - [ ] pluggable storage backends
 - [ ] pluggable export/import formats
 - [ ] pluggable backup backends
+
+- [ ] rename admin to owner?
 
 # Design
 
@@ -25,6 +27,7 @@
 - [ ] `seeqret update --filter <filter> --set env=prod`
 - [ ] more convenient export/import
 - [ ] is there a way to do ACLs
+
 
 ## commands
 
