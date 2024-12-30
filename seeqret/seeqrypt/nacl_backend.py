@@ -84,5 +84,11 @@ def sign_message(string: bytes):
     return verify_key_bytes, signed
 
 
-def hash_message(string: bytes) -> str:
-    return sha256(string, encoder=encoding.Base64Encoder).decode('ascii')
+def hash_message(string: bytes, encoder=encoding.HexEncoder) -> str:
+    return sha256(string, encoder=encoding.HexEncoder).decode('ascii')
+    # return sha256(string, encoder=encoding.Base64Encoder).decode('ascii')
+
+
+def fingerprint(string: bytes) -> str:
+    res = hash_message(string, encoder=encoding.HexEncoder)
+    return res[-5:]

@@ -4,7 +4,16 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def dochelp(cls) -> str:
+    doc = cls.__doc__
+    if not doc:
+        return ""
+    return doc.splitlines()[0].strip()
+
+
 def as_table(headers: str | list, rows, numbered=True):
+    """Output ``rows`` as a table with ``headers``.
+    """
     if isinstance(headers, str):
         headers = [h.strip() for h in headers.split(',')]
     table = Table()

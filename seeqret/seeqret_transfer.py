@@ -1,15 +1,14 @@
 import sqlite3
+import sys
 
 import click
 
 from seeqret.db_utils import fetch_admin, fetch_user
 from seeqret.filterspec import FilterSpec
-from seeqret.models import jason
 from seeqret.seeqret_add import add_user, add_key
 from seeqret.seeqrypt.nacl_backend import (
     public_key, load_private_key, asymetric_decrypt_string, hash_message,
 )
-from seeqret.serializers.jsoncrypt_serializer import JsonCryptSerializer
 from seeqret.storage.sqlite_storage import SqliteStorage
 
 
@@ -47,7 +46,7 @@ def _validate_import_file(indata):
     return not errors
 
 
-def import_secrets(indata):
+def ximport_secrets(indata):
     """seeqret import-file <fname:json>
     """
     if not _validate_import_file(indata):
@@ -137,14 +136,21 @@ def _extract_data(message):
     return msg
 
 
-# def hash_secrets_message(message) -> str:
-#     """Hash all message values.
-#     """
-#     msg = _extract_data(message)
-#     return hash_message(msg.encode('utf-8'))
+def import_secrets(sender, file, value, serializer):
+    storage = SqliteStorage()
+    receiver = storage.fetch_admin()
+    sender = storage.fetch_users(username=sender)[0]
+
+    s = serializer(
+        sender=sender,
+        receiver=receiver,
+        receiver_private_key=load_private_key('private.key'),
+    )
+    secrets = s.load(file or value)
+    print(secrets)
 
 
-def export_secrets(to: str, fspec: FilterSpec):
+def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):
     """seeqret export <user>
 
        Exports secrets from a SQLite database, preparing them for secure
@@ -170,24 +176,26 @@ def export_secrets(to: str, fspec: FilterSpec):
            depending on implementation details not shown here.
     """
     storage = SqliteStorage()
-    sender_pkey = load_private_key('private.key')
 
     admin = storage.fetch_admin()
     if to == 'self':
         receiver = admin
     else:
         receiver = storage.fetch_users(username=to)[0]
-    receiver_pubkey = receiver.public_key
 
-    serializer = JsonCryptSerializer(
-        sender=admin,   # XXX: use User objects containing keys?
-        receiver=to,
-        sender_private_key=sender_pkey,
-        receiver_public_key=receiver_pubkey
+    s = serializer(
+        sender=admin,
+        receiver=receiver,
+        sender_private_key=load_private_key('private.key'),
     )
 
     secrets = storage.fetch_secrets(**fspec.to_filterdict())
-    res = serializer.dumps(secrets)
+    system = sys.platform  # default to current system
+    if windows:
+        system = 'win32'
+    if linux:
+        system = 'linux'
+    res = s.dumps(secrets, system)
 
-    click.echo(jason.dumps(res, indent=4))
+    click.echo(res)
     return res

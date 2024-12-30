@@ -37,7 +37,7 @@ class SqliteStorage(Storage):
     def connection(self):
         path = os.path.join(os.environ['SEEQRET'], self.fname)
         logger.debug('Connecting to SQLite: %s', path)
-        print('Connecting to SQLite: %s' % path)
+        # print('Connecting to SQLite: %s' % path)
         cn = sqlite3.connect(path)
         with cn:
             yield cn

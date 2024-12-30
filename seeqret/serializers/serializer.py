@@ -1,22 +1,40 @@
 """
 Base classes for the serializers.
 """
-SERIALIZER_VERSION = 2
+import click
+
+SERIALIZERS = {}
 
 
 class ValidationError(ValueError):
     pass
 
 
+def serializer(cls):
+    if not hasattr(cls, 'tag'):
+        try:
+            ctx = click.get_current_context()
+        except RuntimeError:
+            raise ValidationError('serializer requires click context')
+        ctx.fail('serializer requires click context')
+    SERIALIZERS[cls.tag] = cls
+    return cls
+
+
 class BaseSerializer:
-    def serialize(self, obj):
-        return self.serialize_version(SERIALIZER_VERSION, obj)
+    version = 0
 
-    def serialize_version(self, version, obj):
-        raise NotImplementedError   # pragma: no cover
+    def __init__(self, sender, receiver,
+                 sender_private_key=None, receiver_private_key=None):
+        self.sender = sender
+        self.receiver = receiver
+        self.sender_private_key = sender_private_key
+        self.receiver_private_key = receiver_private_key
+        self.sender_public_key = sender.public_key
+        self.receiver_public_key = receiver.public_key
 
-    def deserialize(self, storage):
-        return self.deserialize_version(SERIALIZER_VERSION, storage)
+    def dumps(self, secrets, system):
+        raise NotImplementedError()
 
-    def deserialize_version(self, version, data):
-        raise NotImplementedError   # pragma: no cover
+    def load(self, text):
+        raise NotImplementedError()
