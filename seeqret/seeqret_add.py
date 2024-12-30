@@ -1,13 +1,15 @@
+import os
 import sqlite3
 from os import abort
-from rich.console import Console
-from rich.table import Table
 
 import click
 import requests
 
+from seeqret.console_utils import as_table
+from seeqret.storage.sqlite_storage import SqliteStorage
+
 from seeqret.filterspec import FilterSpec
-from seeqret.seeqrypt.aes_fernet import encrypt_string, decrypt_string
+from seeqret.seeqrypt.aes_fernet import encrypt_string
 from seeqret.seeqrypt.utils import load_symetric_key
 
 
@@ -28,44 +30,16 @@ def fetch_pubkey_from_url(url):
 
 # seeqret list
 def list_secrets(fspec: FilterSpec):
-    res = []
-    cipher = load_symetric_key('seeqret.key')
-    cn = sqlite3.connect('seeqrets.db')
-    secrets = cn.execute('''
-        select app, env, key, value
-        from secrets
-        order by key
-    ''').fetchall()
-
-    table = Table()
-    table.add_column("#", justify='right')
-    table.add_column("App")
-    table.add_column("Env")
-    table.add_column("Key")
-    table.add_column("Value")
-    for (i, (app, env, key, value)) in enumerate(fspec.filter(secrets)):
-        val = decrypt_string(cipher, value).decode('utf-8')
-        table.add_row(str(i+1), app, env, key, val)
-
-    console = Console()
-    console.print(table)
-    cn.close()
-    return res
+    storage = SqliteStorage()
+    as_table("App,Env,Key,Value,Type",
+             storage.fetch_secrets(**fspec.to_filterdict()))
 
 
 # seeqret users
 def list_users():
-    cn = sqlite3.connect('seeqrets.db')
-    users = cn.execute('''
-        select id, username, email
-        from users
-    ''').fetchall()
-    for (id, username, email) in users:
-        if id == 1:
-            click.secho(f'User: {username} = {email} (admin)', fg='blue')
-        else:
-            click.echo(f'User: {username} = {email}')
-    cn.close()
+    storage = SqliteStorage()
+    as_table('username,email,publickey',
+             storage.fetch_users())
 
 
 # seeqret key ...
@@ -74,6 +48,9 @@ def add_key(key, value, app='*', env='*'):
         click.secho('Colon `:` is not valid in key, app, or env', fg='red')
         abort()
 
+    print("ADD:KEY:cwd", os.getcwd())
+    print("DB:EXISTS:", os.path.exists('seeqrets.db'))
+    print(os.listdir('.'))
     # click.secho(f'Adding key: {key} with value: {value}', fg='blue')
     click.secho(f'Adding key: {key}..', fg='blue')
     cipher = load_symetric_key('seeqret.key')
