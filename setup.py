@@ -21,7 +21,7 @@ setuptools.setup(
         'Click',
         'rich',
         'requests',
-        'pywin32'
+        "pywin32  ; sys_platform == 'win32'"
     ],
     classifiers=[
         'Programming Language :: Python :: 3',
