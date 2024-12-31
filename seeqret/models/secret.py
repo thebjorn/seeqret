@@ -1,4 +1,4 @@
-from ..seeqrypt.aes_fernet import decrypt_string
+from ..seeqrypt.aes_fernet import decrypt_string, encrypt_string
 from ..seeqrypt.nacl_backend import (
     asymetric_encrypt_string,
     hash_message,
@@ -21,12 +21,22 @@ def cnvt(typename, val):
 
 
 class Secret:
-    def __init__(self, app: str, env: str, key: str, value: bytes, type: str):
+    def __init__(self,
+                 app: str,
+                 env: str,
+                 key: str,
+                 value: bytes = None,
+                 type: str = 'str',
+                 plaintext_value: str = None):
+        if not (value or plaintext_value):
+            raise Exception('value or plaintext_value is required')
         self.app: str = app
         self.env: str = env
         self.key: str = key
-        self._value = value
         self.type = type
+        self._value = value
+        if plaintext_value:
+            self.value = plaintext_value
 
     def __str__(self):
         return (f'Secret({self.app}, {self.env}, '
@@ -50,6 +60,11 @@ class Secret:
         # logger.debug('decrypting: %s %s', self._value, type(self._value))
         val = decrypt_string(cipher, self._value).decode('utf-8')
         return cnvt(self.type, val)
+
+    @value.setter
+    def value(self, value):
+        cipher = load_symetric_key('seeqret.key')
+        self._value = encrypt_string(cipher, value.encode('utf-8'))
 
     def encrypt_value(self, sender_private_key, receiver_pubkey):
         return asymetric_encrypt_string(

@@ -1,4 +1,3 @@
-import os
 import sqlite3
 from os import abort
 
@@ -9,8 +8,8 @@ from seeqret.console_utils import as_table
 from seeqret.storage.sqlite_storage import SqliteStorage
 
 from seeqret.filterspec import FilterSpec
-from seeqret.seeqrypt.aes_fernet import encrypt_string
-from seeqret.seeqrypt.utils import load_symetric_key
+# from seeqret.seeqrypt.aes_fernet import encrypt_string
+# from seeqret.seeqrypt.utils import load_symetric_key
 
 
 def fetch_pubkey_from_url(url):
@@ -47,39 +46,12 @@ def add_key(key, value, app='*', env='*'):
     if ':' in key or ':' in app or ':' in env:
         click.secho('Colon `:` is not valid in key, app, or env', fg='red')
         abort()
-
-    print("ADD:KEY:cwd", os.getcwd())
-    print("DB:EXISTS:", os.path.exists('seeqrets.db'))
-    print(os.listdir('.'))
-    # click.secho(f'Adding key: {key} with value: {value}', fg='blue')
     click.secho(f'Adding key: {key}..', fg='blue')
-    cipher = load_symetric_key('seeqret.key')
-    cn = sqlite3.connect('seeqrets.db')
-    try:
-        with cn:
-            c = cn.cursor()
-            c.execute('''
-                INSERT INTO secrets (app, env, key, value) VALUES (?, ?, ?, ?);
-            ''', (
-                app,
-                env,
-                key,
-                encrypt_string(cipher, str(value).encode('utf-8'))
-            ))
-            cn.commit()
-    except sqlite3.IntegrityError:
-        if click.confirm('Key already exists, overwrite?', default=True):
-            with cn:
-                c.execute('''
-                    UPDATE secrets SET value = ?
-                    WHERE app = ? AND env = ? AND key = ?;
-                ''', (encrypt_string(cipher, str(value).encode('utf-8')),
-                      app, env, key))
+    storage = SqliteStorage()
+    storage.add_secret(app=app, env=env, key=key, value=value)
 
-    secret = cn.execute('''
-        SELECT * FROM secrets WHERE key = ?
-    ''', (key,)).fetchone()
-    if secret:
+    secrets = storage.fetch_secrets(app=app, env=env, key=key)
+    if secrets:
         click.secho(
             f'..successfully added: {app}:{env}[{key}]', fg='green'
         )
@@ -87,7 +59,6 @@ def add_key(key, value, app='*', env='*'):
         click.secho(
             f'Error: {app}:{env}[{key}] not written to database', fg='red'
         )
-    cn.close()
 
 
 # seeqret add user ...

@@ -19,6 +19,7 @@ def _fill_db():
 
 # @pytest.mark.skip(reason="don't test performance in CI")
 def test_performance():
+    os.environ['TESTING'] = "TRUE"
     _create_db()
     _fill_db()
     os.environ['SEEQRET'] = '.'

@@ -9,12 +9,16 @@
 - [x] import export file
 ---
 - [ ] backup
-- [ ] multi-signature secrets
-- [ ] pluggable storage backends
-- [ ] pluggable export/import formats
+- [ ] multi-signature secrets (Shamir)
+- [x] pluggable storage backends
+- [x] pluggable export/import formats
 - [ ] pluggable backup backends
 
 - [ ] rename admin to owner?
+
+# Server vault features
+- [ ] differentiated features based on user
+  - [ ] asdf
 
 # Design
 
@@ -25,7 +29,7 @@
   - [x] `myapp-*::` (all keys for myapp-sales, myapp-marketing, etc)
 - [ ] `seeqret import ...` selectively
 - [ ] `seeqret update --filter <filter> --set env=prod`
-- [ ] more convenient export/import
+- [x] more convenient export/import
 - [ ] is there a way to do ACLs
 
 

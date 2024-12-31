@@ -20,7 +20,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run linting
         run: |
-          flake8 seeqret/
+          flake8 --max-line-length 100 seeqret/
 
   test:
     name: Run tests and upload coverage reports to Codecov

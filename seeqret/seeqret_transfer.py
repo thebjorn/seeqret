@@ -147,7 +147,8 @@ def import_secrets(sender, file, value, serializer):
         receiver_private_key=load_private_key('private.key'),
     )
     secrets = s.load(file or value)
-    print(secrets)
+    for secret in secrets:
+        storage.add_secret_obj(secret)
 
 
 def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):

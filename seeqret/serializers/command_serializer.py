@@ -31,7 +31,7 @@ class CommandSerializer(BaseSerializer):
         if len(params) != 8:
             raise ValidationError('Text must contain 8 parameters')
         version, _, fingerprint, app, env, key, type, val = params
-        print("PARAMS:", params)
+        # print("PARAMS:", params)
         if int(version) != self.version:
             raise ValidationError(
                 f"Version mismatch, found {version} - expected {self.version}"
@@ -41,14 +41,13 @@ class CommandSerializer(BaseSerializer):
             app=app,
             env=env,
             key=key,
-            value=Secret.decrypt_value(  # FIXME: fails here
+            plaintext_value=Secret.decrypt_value(  # FIXME: fails here
                 val, self.sender_public_key, self.receiver_private_key
-            ),
+            ).decode('utf-8'),
             type=type,
         )
-        # if fingerprint != secret.fingerprint():
-        #     raise ValidationError("invalid fingerprint")
-
+        if fingerprint != secret.fingerprint():
+            raise ValidationError("invalid fingerprint")
         return secret
 
     def load(self, text):
