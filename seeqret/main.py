@@ -93,7 +93,7 @@ def export(ctx, to, filter, serializer='json-crypt',
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
         ctx.fail(
-            f'Unknown serializer: {serializer} '
+            f'Unknown serializer: `{serializer}` ({", ".join(SERIALIZERS.keys())}) '
             '(use `seeqret serializers` to list available serializers).'
         )
     with cd(os.environ['SEEQRET']):

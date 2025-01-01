@@ -198,5 +198,7 @@ def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):
         system = 'linux'
     res = s.dumps(secrets, system)
 
+    # print("SECRETS:---------------------")
     click.echo(res)
+    # print("/SECRETS:---------------------")
     return res

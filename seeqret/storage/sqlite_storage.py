@@ -73,6 +73,21 @@ class SqliteStorage(Storage):
             logger.debug('Result: %s', res)
             return res
 
+    def add_user(self, user: User):
+        with self.connection() as cn:
+            c = cn.cursor()
+            c.execute('''
+                insert into users (username, email, pubkey)
+                values (?, ?, ?);
+            ''', (
+                user.username,
+                user.email,
+                user.pubkey
+            ))
+            cn.commit()
+
+        return self.fetch_users(username=user.username)
+
     def fetch_users(self, **filters):
         logger.debug('fetch_users: %s', filters)
         sql = ("""
@@ -99,6 +114,7 @@ class SqliteStorage(Storage):
                         encrypt_string(cipher, str(value).encode('utf-8')),
                         type))
             except sqlite3.IntegrityError:
+                # XXX: is part of adding a secret.
                 if click.confirm('Key already exists, overwrite?', default=True):
                     with cn:
                         c.execute('''
@@ -116,6 +132,12 @@ class SqliteStorage(Storage):
         return [Secret(*rec)
                 for rec in self.execute_sql(sql, **filters)]
 
+    def _remove_secrets(self, **filters):
+        sql = """
+            delete from secrets
+        """
+        self.execute_sql(sql, **filters)
+
     def remove_secrets(self, **filters):
         # FIXME: not storage code...
         logger.debug('remove_secrets: %s', filters)
@@ -127,12 +149,9 @@ class SqliteStorage(Storage):
             print("DELETING SECRETS", [s.key for s in secrets])
         else:
             print("Aborting delete.")
-        # Storage code starts below
 
-        sql = """
-            delete from secrets
-        """
-        self.execute_sql(sql, **filters)
+        # Storage code starts below
+        self._remove_secrets(**filters)
 
         # FIXME: not storage code
         click.secho("secrets deleted.", fg='green')

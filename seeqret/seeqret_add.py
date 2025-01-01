@@ -64,17 +64,10 @@ def add_key(key, value, app='*', env='*'):
 # seeqret add user ...
 def add_user(pubkey, username, email):
     click.secho(f'Adding user: {username} with email: {email}', fg='blue')
-    cn = sqlite3.connect('seeqrets.db')
-    with cn:
-        c = cn.cursor()
-        c.execute('''
-            INSERT INTO users (username, email, pubkey) VALUES (?, ?, ?);
-        ''', (username, email, pubkey))
-        cn.commit()
 
-    usr = cn.execute('''
-        SELECT * FROM users WHERE username = ?
-    ''', (username,)).fetchone()
+    storage = SqliteStorage()
+    from seeqret.models import User
+    users = storage.add_user(User(pubkey=pubkey, username=username, email=email))
+
     click.secho('User added:', fg='green')
-    click.secho(f'    {usr}', fg='green')
-    cn.close()
+    click.secho(f'    {users[0]}', fg='green')

@@ -19,8 +19,9 @@ class CommandSerializer(BaseSerializer):
             val = s.encrypt_to_string(self.sender_private_key,
                                       self.receiver_public_key)
             res.append(
-                f'seeqret save -u {self.sender.username} -s command '
-                f'-v {quote}{self.version}::{val}{quote}'
+                f'seeqret save -u{self.sender.username} -scommand '
+                f'-v{self.version}::{val}'
+                # f'-v{quote}{self.version}::{val}{quote}'
             )
         return '\n'.join(res)
 

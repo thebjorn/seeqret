@@ -1,4 +1,4 @@
-from seeqret.models import Secret
+from seeqret.models import Secret, User
 
 
 class Storage:
@@ -7,6 +7,9 @@ class Storage:
     def __init__(self, name, version=None):
         self.name = name
         self.version = version
+
+    def add_user(self, user: User):
+        raise NotImplementedError
 
     def fetch_users(self, **filters):
         raise NotImplementedError   # pragma: no cover
