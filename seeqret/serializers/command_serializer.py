@@ -2,9 +2,6 @@ from .serializer import BaseSerializer, serializer, ValidationError
 from ..models import Secret
 
 
-# from ..seeqrypt.nacl_backend import hash_message
-
-
 @serializer
 class CommandSerializer(BaseSerializer):
     """Help text jsoncrypt.
@@ -14,7 +11,7 @@ class CommandSerializer(BaseSerializer):
 
     def dumps(self, secrets, system):
         res = []
-        quote = '"' if system == 'win32' else "'"
+        # quote = '"' if system == 'win32' else "'"
         for s in secrets:
             val = s.encrypt_to_string(self.sender_private_key,
                                       self.receiver_public_key)

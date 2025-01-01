@@ -1,4 +1,3 @@
-import sqlite3
 from os import abort
 
 import click
@@ -8,8 +7,6 @@ from seeqret.console_utils import as_table
 from seeqret.storage.sqlite_storage import SqliteStorage
 
 from seeqret.filterspec import FilterSpec
-# from seeqret.seeqrypt.aes_fernet import encrypt_string
-# from seeqret.seeqrypt.utils import load_symetric_key
 
 
 def fetch_pubkey_from_url(url):
