@@ -13,9 +13,11 @@ def test_add_user():
             '--user=test',
             '--email=test@example.com',
         ])
+        if result.exit_code != 0:  print_result(result)
         assert result.exit_code == 0
 
         result = runner.invoke(users)
+        if result.exit_code != 0:  print_result(result)
         assert result.exit_code == 0
         assert 'test@example.com' in result.output
 
@@ -24,9 +26,10 @@ def test_add_user():
         result = runner.invoke(user,[
             '--username=tkbe',
             '--email=bjorn@tkbe.org',
-            '--url=https://raw.githubusercontent.com/tkbeorg/tkbe/refs/heads/main/public.key'
+            '--pubkey=ilxSnX9+NrwmeIzOFtWrl0lPPkxTEATmC39BILX6rWk='
+            # '--url=https://raw.githubusercontent.com/tkbeorg/tkbe/refs/heads/main/public.key'
         ])
-        # print_result(result)
+        if result.exit_code != 0:  print_result(result)
         print("DBUSERS:", debug_fetch_users())
         #
         assert len(debug_fetch_users()) == 2

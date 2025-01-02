@@ -4,7 +4,7 @@ from pathlib import Path
 
 import click
 from click import Context
-
+from .storage.sqlite_storage import SqliteStorage
 from . import seeqret_transfer
 # from .context import Context
 from . import seeqret_init, seeqret_add, cd
@@ -17,13 +17,15 @@ from .cli_group_add import key as add_key
 import logging
 
 DIRNAME = Path(__file__).parent
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
-@click.group()
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.pass_context
 @click.option('-L', '--log', default="ERROR")
 def cli(ctx, log):
     logging.basicConfig(level=getattr(logging, log))
+    ctx.obj = {"seeqrets_dir": os.environ.get("SEEQRETS")}
 
 
 @cli.command()
@@ -49,7 +51,10 @@ def list(filter):
     """List the contents of the vault
     """
     with cd(os.environ['SEEQRET']):
-        return seeqret_add.list_secrets(FilterSpec(filter))
+        storage = SqliteStorage()
+        fspec = FilterSpec(filter)
+        as_table("App,Env,Key,Value,Type",
+                 storage.fetch_secrets(**fspec.to_filterdict()))
 
 
 @cli.command()
@@ -58,7 +63,9 @@ def users():
     """
     # print("SEEQRET:DIR:", os.environ['SEEQRET'])
     with cd(os.environ['SEEQRET']):
-        seeqret_add.list_users()
+        storage = SqliteStorage()
+        as_table('username,email,publickey',
+                 storage.fetch_users())
 
 
 @cli.command()
@@ -213,6 +220,39 @@ rm.add_command(rm_key)
 
 
 @cli.group()
+def edit():
+    """Edit a secret or user in the vault.
+    """
+
+
+def pluralize(items, word, plural):
+    return word if len(items) == 1 else plural
+
+
+@edit.command()
+@click.pass_context
+@click.argument('filter', default='::')
+@click.argument('val')
+def value(ctx, filter: str, val: str):
+    with cd(os.environ['SEEQRET']):
+        storage = SqliteStorage()
+        fspec = FilterSpec(filter)
+        secrets = storage.fetch_secrets(**fspec.to_filterdict())
+        if not secrets:
+            ctx.fail(f'No secrets found for {filter}')
+        if len(secrets) > 1:
+            as_table('app,env,key,value,type', secrets)
+            if not click.confirm("Update all values?"):
+                ctx.fail('Aborted')
+        for secret in secrets:
+            secret.value = val
+            storage.update_secret(secret)
+
+        click.secho(f"updated {pluralize(secrets, 'secret', 'secrets')}", fg='green')
+        as_table('app,env,key,value,type', secrets)
+
+
+@cli.group()
 def add():
     """Add a new secret, key or user
     """
@@ -224,21 +264,21 @@ add.add_command(add_key)
 
 @add.command()
 @click.pass_context
-@click.option('--url', prompt=True,
-              help='URL that contains (only) the public key (as text)')
 @click.option('--username', prompt=True,
               help='Username to record')
 @click.option('--email', prompt=True,
               help='Email for the user')
-def user(ctx, url, username, email):
+@click.option('--pubkey', prompt=True,
+              help='Public key for the user')
+def user(ctx, username, email, pubkey):
     """Add a new user to the vault from a public key.
 
        If the public key is on GitHub, the url is the raw url, e.g.
 
        https://raw.githubusercontent.com/user/project/refs/heads/main/public.key
     """
-    click.echo(f'Adding a new user, from {url}')
+    click.secho(f'Adding a new user {username}|{email}|{pubkey}', fg='blue')
     with cd(os.environ['SEEQRET']):
-        click.secho(f'Fetching public key: {url}', fg='blue')
-        pubkey = seeqret_add.fetch_pubkey_from_url(url)
+        # click.secho(f'Fetching public key: {url}', fg='blue')
+        # pubkey = seeqret_add.fetch_pubkey_from_url(url)
         seeqret_add.add_user(pubkey, username, email)

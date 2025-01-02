@@ -49,9 +49,10 @@ def test_command_roundtrip():
 
         with cd('seeqret'):
             storage = SqliteStorage()
-            storage._remove_secrets(key='FOO')
+            storage.remove_secrets(key='FOO')
 
         result = runner.invoke(save, output)
+        if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
         # print_result(result)
 

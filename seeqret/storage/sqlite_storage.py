@@ -3,15 +3,9 @@ import re
 import sqlite3
 from contextlib import contextmanager
 
-import click
-
-from .. import load_symetric_key
-from ..console_utils import as_table
 from ..models import User, Secret
 from .storage import Storage
 from logging import getLogger
-
-from ..seeqrypt.aes_fernet import encrypt_string
 
 logger = getLogger(__name__)
 
@@ -97,31 +91,31 @@ class SqliteStorage(Storage):
         return [User(*rec)
                 for rec in self.execute_sql(sql, **filters)]
 
-    def add_secret(self, app, env, key, value, type='str'):
-        cipher = load_symetric_key('seeqret.key')
-        sql = """
-            insert into secrets (app, env, key, value, type)
-            values (?, ?, ?, ?, ?);
-        """
+    def update_secret(self, secret: Secret):
         with self.connection() as cn:
-            try:
-                with cn:
-                    c = cn.cursor()
-                    c.execute(sql, (
-                        app,
-                        env,
-                        key,
-                        encrypt_string(cipher, str(value).encode('utf-8')),
-                        type))
-            except sqlite3.IntegrityError:
-                # XXX: is part of adding a secret.
-                if click.confirm('Key already exists, overwrite?', default=True):
-                    with cn:
-                        c.execute('''
-                            UPDATE secrets SET value = ?
-                            WHERE app = ? AND env = ? AND key = ?;
-                        ''', (encrypt_string(cipher, str(value).encode('utf-8')),
-                              app, env, key))
+            cn.execute('''
+                UPDATE secrets SET value = ?
+                WHERE app = ? AND env = ? AND key = ?;
+            ''', (
+                secret._value,
+                secret.app, secret.env, secret.key
+            ))
+            cn.commit()
+
+    def add_secret(self, secret: Secret):
+        with self.connection() as cn:
+            sql = """
+                insert into secrets (app, env, key, value, type)
+                values (?, ?, ?, ?, ?);
+            """
+            cn.execute(sql, (
+                secret.app,
+                secret.env,
+                secret.key,
+                secret._value,
+                secret.type
+            ))
+            cn.commit()
 
     def fetch_secrets(self, **filters):
         logger.debug('fetch_secrets: %s', filters)
@@ -132,29 +126,11 @@ class SqliteStorage(Storage):
         return [Secret(*rec)
                 for rec in self.execute_sql(sql, **filters)]
 
-    def _remove_secrets(self, **filters):
+    def remove_secrets(self, **filters):
         sql = """
             delete from secrets
         """
         self.execute_sql(sql, **filters)
-
-    def remove_secrets(self, **filters):
-        # FIXME: not storage code...
-        logger.debug('remove_secrets: %s', filters)
-        if not filters:
-            click.secho("ERROR: can't remove all secrets", fg='red')
-        secrets = self.fetch_secrets(**filters)
-        as_table('app,env,key,value,type', secrets)
-        if click.confirm('Delete secrets?'):
-            print("DELETING SECRETS", [s.key for s in secrets])
-        else:
-            print("Aborting delete.")
-
-        # Storage code starts below
-        self._remove_secrets(**filters)
-
-        # FIXME: not storage code
-        click.secho("secrets deleted.", fg='green')
 
     def fetch_admin(self):
         logger.debug('fetch_admin: %s', self)

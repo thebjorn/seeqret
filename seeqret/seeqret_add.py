@@ -1,12 +1,7 @@
-from os import abort
-
 import click
 import requests
 
-from seeqret.console_utils import as_table
 from seeqret.storage.sqlite_storage import SqliteStorage
-
-from seeqret.filterspec import FilterSpec
 
 
 def fetch_pubkey_from_url(url):
@@ -22,40 +17,6 @@ def fetch_pubkey_from_url(url):
         ctx.fail(click.style(f'Failed to fetch public key: {url}', fg='red'))
     click.secho('Public key fetched.', fg='green')
     return r.text
-
-
-# seeqret list
-def list_secrets(fspec: FilterSpec):
-    storage = SqliteStorage()
-    as_table("App,Env,Key,Value,Type",
-             storage.fetch_secrets(**fspec.to_filterdict()))
-
-
-# seeqret users
-def list_users():
-    storage = SqliteStorage()
-    as_table('username,email,publickey',
-             storage.fetch_users())
-
-
-# seeqret key ...
-def add_key(key, value, app='*', env='*'):
-    if ':' in key or ':' in app or ':' in env:
-        click.secho('Colon `:` is not valid in key, app, or env', fg='red')
-        abort()
-    click.secho(f'Adding key: {key}..', fg='blue')
-    storage = SqliteStorage()
-    storage.add_secret(app=app, env=env, key=key, value=value)
-
-    secrets = storage.fetch_secrets(app=app, env=env, key=key)
-    if secrets:
-        click.secho(
-            f'..successfully added: {app}:{env}[{key}]', fg='green'
-        )
-    else:
-        click.secho(
-            f'Error: {app}:{env}[{key}] not written to database', fg='red'
-        )
 
 
 # seeqret add user ...

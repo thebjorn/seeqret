@@ -3,14 +3,9 @@ import sys
 
 import click
 
-# from .db_utils import fetch_admin, fetch_user
 from .filterspec import FilterSpec
-# from .seeqret_add import add_user, add_key
 from .seeqrypt.nacl_backend import (
-    # public_key,
     load_private_key,
-    # asymetric_decrypt_string,
-    # hash_message,
 )
 from .storage.sqlite_storage import SqliteStorage
 
@@ -27,7 +22,7 @@ def import_secrets(sender, file, value, serializer):
     )
     secrets = s.load(file or value)
     for secret in secrets:
-        storage.add_secret_obj(secret)
+        storage.add_secret(secret)
 
 
 def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):

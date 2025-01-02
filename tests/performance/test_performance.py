@@ -1,9 +1,11 @@
 import pytest
 import os
 import seeqret
-from seeqret.seeqret_add import add_key
+from seeqret import cd
+from seeqret.models import Secret
 from seeqret.seeqret_init import init_db, create_user_keys
 from seeqret.fileutils import remove_file_if_exists
+from seeqret.storage.sqlite_storage import SqliteStorage
 
 
 # create a seeqret db and fill it with 500 secrets
@@ -12,17 +14,28 @@ def _create_db():
     init_db('.', 'test', 'test@example.com')
 
 
+def _secret_i(i):
+    return Secret(
+        app='*',
+        env='*',
+        key=f'key{i}',
+        plaintext_value=str(i),
+        type='str'
+    )
+
 def _fill_db():
-    for i in range(200):
-        add_key(f'key{i}', i)
+    with cd(os.environ['SEEQRET']):
+        storage = SqliteStorage()
+        for i in range(200):
+            storage.add_secret(_secret_i(i))
 
 
 # @pytest.mark.skip(reason="don't test performance in CI")
 def test_performance():
     os.environ['TESTING'] = "TRUE"
     _create_db()
-    _fill_db()
     os.environ['SEEQRET'] = '.'
+    _fill_db()
     import time
     start = time.time()
     for i in range(2750):
