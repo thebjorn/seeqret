@@ -1,7 +1,8 @@
 from click.testing import CliRunner
 
 from seeqret.db_utils import debug_fetch_users, debug_secrets
-from seeqret.main import cli, user, users, init, list, key
+from seeqret.main import cli, user, users, init, list
+from seeqret.cli_group_add import key
 from tests.clirunner_utils import print_result
 
 
@@ -13,6 +14,7 @@ def test_add_key():
             '--user=test',
             '--email=test@example.com',
         ])
+        if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
 
         assert len(debug_secrets()) == 0
@@ -24,5 +26,6 @@ def test_add_key():
             '--app=myapp',
             '--env=dev'
         ])
+        if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
         assert len(debug_fetch_users()) == 1

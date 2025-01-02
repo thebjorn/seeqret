@@ -5,16 +5,16 @@ from pathlib import Path
 import click
 from click import Context
 
-import seeqret.seeqret_transfer
+from . import seeqret_transfer
 # from .context import Context
 from . import seeqret_init, seeqret_add, cd
 from .console_utils import as_table, dochelp
 from .fileutils import is_writable
 from .filterspec import FilterSpec
 from .serializers.serializer import SERIALIZERS
+from .cli_group_rm import key as rm_key
+from .cli_group_add import key as add_key
 import logging
-
-from .storage.sqlite_storage import SqliteStorage
 
 DIRNAME = Path(__file__).parent
 
@@ -75,6 +75,15 @@ def serializers():
 
 
 @cli.command()
+def backup():
+    serializer = SERIALIZERS['backup']
+    with cd(os.environ['SEEQRET']):
+        seeqret_transfer.export_secrets(
+            'self', FilterSpec('::'),
+            serializer, False, False
+        )
+
+@cli.command()
 @click.pass_context
 @click.argument('to')
 @click.option('-f', '--filter', default='',
@@ -97,7 +106,7 @@ def export(ctx, to, filter, serializer='json-crypt',
             '(use `seeqret serializers` to list available serializers).'
         )
     with cd(os.environ['SEEQRET']):
-        seeqret.seeqret_transfer.export_secrets(
+        seeqret_transfer.export_secrets(
             to, FilterSpec(filter),
             serializer_cls, windows, linux
         )
@@ -123,7 +132,7 @@ def save(ctx, from_user, file, value, serializer):
             '(use `seeqret serializers` to list available serializers).'
         )
     with cd(os.environ['SEEQRET']):
-        seeqret.seeqret_transfer.import_secrets(
+        seeqret_transfer.import_secrets(
             from_user, file, value, serializer_cls
         )
 
@@ -183,11 +192,31 @@ def init(ctx: click.Context,
     seeqret_init.secrets_init(dirname, user, email, pubkey, key)
 
 
+@cli.command()
+@click.pass_context
+@click.argument('url')
+def fetch(ctx, url):
+    "Debugging"
+    # XXX: remove me, for debugging...
+    seeqret_add.fetch_pubkey_from_url(url)
+
+
+@cli.group()
+def rm():
+    """Remove a secret or user from the vault.
+    """
+    pass
+
+
+rm.add_command(rm_key)
+
 @cli.group()
 def add():
     """Add a new secret, key or user
     """
     pass
+
+add.add_command(add_key)
 
 
 @add.command()
@@ -210,54 +239,3 @@ def user(ctx, url, username, email):
         click.secho(f'Fetching public key: {url}', fg='blue')
         pubkey = seeqret_add.fetch_pubkey_from_url(url)
         seeqret_add.add_user(pubkey, username, email)
-
-
-@cli.command()
-@click.pass_context
-@click.argument('url')
-def fetch(ctx, url):
-    "Debugging"
-    # XXX: remove me, for debugging...
-    seeqret_add.fetch_pubkey_from_url(url)
-
-
-@cli.group()
-def rm():
-    """Remove a secret or user from the vault.
-    """
-    pass
-
-
-@rm.command()
-@click.pass_context
-@click.argument('filter')
-def key(ctx, filter):
-    """Remove a secret from the vault.
-    """
-    with cd(os.environ['SEEQRET']):
-        storage = SqliteStorage()
-        print("NAME:", FilterSpec(filter))
-        storage.remove_secrets(**FilterSpec(filter).to_filterdict())
-
-
-@add.command()
-@click.argument('name')
-@click.argument('value')
-@click.option('--app', default='*', show_default=True,
-              help='The app to add the secret to')
-@click.option('--env', default='*', show_default=True,
-              help='The env(ironment) to add the secret to (e.g. dev/prod)')
-def key(name: str, value: str, app: str = None, env: str = None):  # noqa: F811
-    """Add a new NAME -> VALUE mapping.
-
-       You can (should) specify the app and environment properties when adding
-       a new mapping.
-    """
-    print("KEY::")
-    click.echo(
-        f'Adding a new key: {name}, value: {value}, app: {app}, env: {env}'
-    )
-
-    with cd(os.environ['SEEQRET']):
-        print("CALLING:seeqret_add.add_key", name, value, app, env)
-        seeqret_add.add_key(name, value, app, env)

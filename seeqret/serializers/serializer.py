@@ -24,7 +24,7 @@ def serializer(cls):
 class BaseSerializer:
     version = 0
 
-    def __init__(self, sender, receiver,
+    def __init__(self, sender=None, receiver=None,
                  sender_private_key=None, receiver_private_key=None):
         self.sender = sender
         self.receiver = receiver

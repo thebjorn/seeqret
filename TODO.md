@@ -8,17 +8,16 @@
 - [x] Export app:env(key:value) pair to foreign user
 - [x] import export file
 ---
-- [ ] backup
-- [ ] multi-signature secrets (Shamir)
+
 - [x] pluggable storage backends
 - [x] pluggable export/import formats
+- [ ] backup
+- [ ] multi-signature secrets (Shamir)
 - [ ] pluggable backup backends
 
 - [ ] rename admin to owner?
+- [ ] rename users to keyring?
 
-# Server vault features
-- [ ] differentiated features based on user
-  - [ ] asdf
 
 # Design
 
@@ -32,6 +31,14 @@
 - [x] more convenient export/import
 - [ ] is there a way to do ACLs
 
+## public key distribution mechanism
+- web of trust (discrete webs can be safely merged whenever two persons)
+  in different webs achieve a direct trust relationship, correct? - emergent
+  web of confidence?)
+
+## Server vault features
+- [ ] differentiated features based on user
+  - [ ] asdf
 
 ## commands
 

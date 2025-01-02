@@ -10,7 +10,7 @@ from seeqret.filterspec import FilterSpec
 
 
 def fetch_pubkey_from_url(url):
-
+    # FIXME: this does not provide a way to connect the user to the pubkey!
     r = requests.get(url)
     if r.status_code != 200:
         ctx = None

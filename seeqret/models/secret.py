@@ -45,6 +45,16 @@ class Secret:
     def __repr__(self):
         return f'{self.app}:{self.env}:{self.key}:{self.type}:{self.value}'
 
+    # define all the output formats here, so all new fields are accounted for
+    def to_plaintext_dict(self):
+        return dict(
+            app=self.app,
+            env=self.env,
+            key=self.key,
+            type=self.type,
+            value=self.value
+        )
+
     def __json__(self):
         return dict(
             app=self.app,

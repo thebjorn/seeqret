@@ -40,18 +40,18 @@ class DkJSONEncoder(json.JSONEncoder):
             return float(o)
         if hasattr(o, '__json__'):
             return o.__json__()
-        if isinstance(o, set):
-            return list(o)
+        # if isinstance(o, set):
+        #     return list(o)
         if isinstance(o, datetime.datetime):
             return f'{o.isoformat()}'
         if isinstance(o, datetime.date):
             return f'{o.isoformat()}'
-        if isinstance(o, datetime.time):
-            return dict(hour=o.hour,
-                        minute=o.minute,
-                        second=o.second,
-                        microsecond=o.microsecond,
-                        kind="TIME")
+        # if isinstance(o, datetime.time):
+        #     return dict(hour=o.hour,
+        #                 minute=o.minute,
+        #                 second=o.second,
+        #                 microsecond=o.microsecond,
+        #                 kind="TIME")
 
         if hasattr(o, '__dict__'):
             return {k: v
@@ -98,6 +98,18 @@ def dump2(val, **kw):
 #
 #
 
+def _iso_to_date(s):
+    try:
+        return datetime.date.fromisoformat(s)
+    except ValueError:
+        return None
+
+def _iso_to_datetime(s):
+    try:
+        return datetime.datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
 
 def obj_decoder(pairs):
     """Reverses values created by DkJSONEncoder.
@@ -122,26 +134,12 @@ def obj_decoder(pairs):
 
     res = {}
     for key, val in pairs:
-        # tag = _get_tag(val)
-        # if tag and tag == '@datetime:':
-        #     val = str(val)
-        #     m = DATETIME_RE.match(val)  # pylint:disable=invalid-name
-        #     g = m.groupdict()           # pylint:disable=invalid-name
-        #     val = datetime.datetime(
-        #         int(g['year']),
-        #         int(g['mnth']),
-        #         int(g['day']),
-        #         int(g['hr']),
-        #         int(g['min']),
-        #         int(g['sec']),
-        #         int(g.get('ms', '0') or 0)
-        #     )
-        #     # val = datetime.datetime.strptime(val[len('@datetime:'):],
-        #     #                                  '%Y-%m-%dT%H:%M:%S.%f')
-        # elif tag and tag == '@date:':
-        #     val = datetime.date(
-        #         *[int(part, 10)
-        #           for part in val[len('@date:'):].split('-')])
+        if isinstance(val, str):
+            if dt := _iso_to_date(val):
+                val = dt
+            elif dt := _iso_to_datetime(val):
+                val = dt
+
         res[key] = val
     return res
 
@@ -156,13 +154,13 @@ def loads(txt, **kw):
     return json.loads(txt, **kw)
 
 
-# def json_eval(txt):
-#     """Un-serialize json value.
-#     """
-#     return loads(txt)
-#
-#
-# def jsonname(val):
-#     """Convert the string in val to a valid json field name.
-#     """
-#     return val.replace('.', '_')
+def json_eval(txt):
+    """Un-serialize json value.
+    """
+    return loads(txt)
+
+
+def jsonname(val):
+    """Convert the string in val to a valid json field name.
+    """
+    return val.replace('.', '_')

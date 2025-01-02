@@ -1,4 +1,4 @@
-from seeqret.seeqrypt.nacl_backend import public_key
+from ..seeqrypt.nacl_backend import public_key
 
 
 class User:

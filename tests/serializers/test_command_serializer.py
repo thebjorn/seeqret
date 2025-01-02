@@ -2,7 +2,8 @@ from click.testing import CliRunner
 
 from seeqret import cd
 from seeqret.db_utils import debug_fetch_users, debug_secrets
-from seeqret.main import cli, user, users, init, list, key, export, serializers, save
+from seeqret.main import cli, user, users, init, list, export, serializers, save
+from seeqret.cli_group_add import key
 from seeqret.storage.sqlite_storage import SqliteStorage
 from tests.clirunner_utils import print_result
 

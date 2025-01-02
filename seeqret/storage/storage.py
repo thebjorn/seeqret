@@ -1,4 +1,4 @@
-from seeqret.models import Secret, User
+from ..models import Secret, User
 
 
 class Storage:

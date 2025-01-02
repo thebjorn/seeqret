@@ -1,31 +1,30 @@
+from ..models import jason
 from ..models.jason import dumps, loads
-from .serializer import BaseSerializer, ValidationError
+from .serializer import BaseSerializer, ValidationError, serializer
+from ..models.secret import hash_secrets, Secret
 
 
+@serializer
 class InsecureJsonSerializer(BaseSerializer):
-    def __init__(self):
-        super().__init__()
+    version = 1
+    tag = 'backup'
 
-    def serialize_version(self, version, storage):
-        data = {
-            "serializer": {
-                "name": "insecure_json",
-                "version": version,
-            },
-            "storage": {
-                "name": storage.name,
-                "version": storage.version,
-            },
-            "data": {
-                "users": storage.fetch_users(),
-                "secrets": storage.fetch_secrets(),
-            }
+    def to_json_object(self, secrets):
+        res = {
+            "version": self.version,
+            "from": self.sender,
+            "to": self.receiver,
+            "secrets": [s.to_plaintext_dict() for s in secrets],
+            "signature": hash_secrets(secrets),
         }
-        return dumps(data)
+        return res
 
-    def deserialize_version(self, version, data):
-        tmp = loads(data)
-        if tmp["serializer"]["version"] != version:
+    def dumps(self, secrets, system):
+        return jason.dumps(self.to_json_object(secrets))
+
+    def deserialize_version(self, text):
+        tmp = loads(text)
+        if tmp["version"] != self.version:
             # XXX: for now, bail if incorrect version
             raise ValidationError("Incorrect version")
-        return tmp["data"]
+        return [Secret(**s) for s in tmp["secrets"]]
