@@ -98,11 +98,13 @@ def dump2(val, **kw):
 #
 #
 
+
 def _iso_to_date(s):
     try:
         return datetime.date.fromisoformat(s)
     except ValueError:
         return None
+
 
 def _iso_to_datetime(s):
     try:

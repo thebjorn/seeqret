@@ -7,10 +7,10 @@ import click
 from .filterspec import FilterSpec
 # from .seeqret_add import add_user, add_key
 from .seeqrypt.nacl_backend import (
-    public_key,
+    # public_key,
     load_private_key,
-    asymetric_decrypt_string,
-    hash_message,
+    # asymetric_decrypt_string,
+    # hash_message,
 )
 from .storage.sqlite_storage import SqliteStorage
 
@@ -28,6 +28,7 @@ def import_secrets(sender, file, value, serializer):
     secrets = s.load(file or value)
     for secret in secrets:
         storage.add_secret_obj(secret)
+
 
 def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):
     """seeqret export <user>

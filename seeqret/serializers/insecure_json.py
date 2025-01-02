@@ -1,5 +1,5 @@
 from ..models import jason
-from ..models.jason import dumps, loads
+from ..models.jason import loads
 from .serializer import BaseSerializer, ValidationError, serializer
 from ..models.secret import hash_secrets, Secret
 

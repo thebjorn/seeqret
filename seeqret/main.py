@@ -83,6 +83,7 @@ def backup():
             serializer, False, False
         )
 
+
 @cli.command()
 @click.pass_context
 @click.argument('to')
@@ -210,11 +211,13 @@ def rm():
 
 rm.add_command(rm_key)
 
+
 @cli.group()
 def add():
     """Add a new secret, key or user
     """
     pass
+
 
 add.add_command(add_key)
 
