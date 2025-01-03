@@ -5,7 +5,7 @@ from seeqret.seeqrypt.aes_fernet import decrypt_string
 from seeqret.seeqrypt.utils import load_symetric_key
 from seeqret.run_utils import cd
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 
 def get(key, app='*', env='*'):
