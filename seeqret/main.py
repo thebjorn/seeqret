@@ -25,7 +25,10 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.option('-L', '--log', default="ERROR")
 def cli(ctx, log):
     logging.basicConfig(level=getattr(logging, log))
-    ctx.obj = {"seeqrets_dir": os.environ.get("SEEQRETS")}
+    ctx.obj = {
+        "seeqrets_dir": os.environ.get("SEEQRETS"),
+        "curdir": os.getcwd(),
+    }
 
 
 @cli.command()
@@ -99,11 +102,13 @@ def backup():
 @click.option(
     '-s', '--serializer', default='json-crypt',
     help='Name of serializer to use (`seeqret serializers` to list).')
+@click.option('-o', '--out', default=None,
+              help='Output file (default: stdout).')
 @click.option('-w', '--windows', default=False, is_flag=True,
               help='Export to windows format.')
 @click.option('-l', '--linux', default=False, is_flag=True,
               help='Export to linux format.')
-def export(ctx, to, filter, serializer='json-crypt',
+def export(ctx, to, filter, serializer='json-crypt', out=None,
            windows=False, linux=False):
     """Export the vault to a user
     """
@@ -115,8 +120,9 @@ def export(ctx, to, filter, serializer='json-crypt',
         )
     with cd(os.environ['SEEQRET']):
         seeqret_transfer.export_secrets(
+            ctx,
             to, FilterSpec(filter),
-            serializer_cls, windows, linux
+            serializer_cls, out, windows, linux
         )
 
 

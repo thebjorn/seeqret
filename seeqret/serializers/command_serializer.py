@@ -4,7 +4,7 @@ from ..models import Secret
 
 @serializer
 class CommandSerializer(BaseSerializer):
-    """Help text jsoncrypt.
+    """Output list of commands that can be pasted into terminal.
     """
     version = 1
     tag = 'command'

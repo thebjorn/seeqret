@@ -6,6 +6,8 @@ from ..models.secret import hash_secrets, Secret
 
 @serializer
 class InsecureJsonSerializer(BaseSerializer):
+    """For debugging (and maybe backup?)
+    """
     version = 1
     tag = 'backup'
 

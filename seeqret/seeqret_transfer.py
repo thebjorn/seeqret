@@ -1,4 +1,5 @@
 # import sqlite3
+import os
 import sys
 
 import click
@@ -25,7 +26,7 @@ def import_secrets(sender, file, value, serializer):
         storage.add_secret(secret)
 
 
-def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):
+def export_secrets(ctx, to: str, fspec: FilterSpec, serializer, out, windows, linux):
     """seeqret export <user>
 
        Exports secrets from a SQLite database, preparing them for secure
@@ -72,7 +73,10 @@ def export_secrets(to: str, fspec: FilterSpec, serializer, windows, linux):
         system = 'linux'
     res = s.dumps(secrets, system)
 
-    # print("SECRETS:---------------------")
-    click.echo(res)
-    # print("/SECRETS:---------------------")
+    if out:
+        click.echo(f"Writing secrets to: {out} ({os.path.join(ctx.obj['curdir'], out)})")
+        with open(os.path.join(ctx.obj['curdir'], out), 'w') as f:
+            f.write(res)
+    else:
+        click.echo(res)
     return res
