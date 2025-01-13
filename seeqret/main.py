@@ -41,7 +41,7 @@ def info(dump):
         if dump:
             print(json.dumps(info, indent=4))
             return
-        
+
     def _help(command):
         txt = command.get('help', '') or ''
         return txt.split('\n')[0]

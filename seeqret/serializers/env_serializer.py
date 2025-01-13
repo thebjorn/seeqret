@@ -28,4 +28,3 @@ class EnvSerializer(BaseSerializer):
             env=kw.get('env', '*'),
             type=kw.get('type', 'str')
         ) for line in lines]
-
