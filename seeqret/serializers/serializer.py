@@ -30,8 +30,10 @@ class BaseSerializer:
         self.receiver = receiver
         self.sender_private_key = sender_private_key
         self.receiver_private_key = receiver_private_key
-        self.sender_public_key = sender.public_key
-        self.receiver_public_key = receiver.public_key
+        if sender:
+            self.sender_public_key = sender.public_key
+        if receiver:
+            self.receiver_public_key = receiver.public_key
 
     def dumps(self, secrets, system):
         raise NotImplementedError()

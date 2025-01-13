@@ -1,4 +1,5 @@
 from .serializer import serializer, BaseSerializer
+from ..models import Secret
 
 
 @serializer
@@ -8,7 +9,7 @@ class EnvSerializer(BaseSerializer):
     version = 1
     tag = 'env'
 
-    def dumps(self, secrets, system):
+    def dumps(self, secrets, system) -> str:
         if system == 'linux':
             return "don't write .env files on linux"
 
@@ -18,5 +19,13 @@ class EnvSerializer(BaseSerializer):
 
         return '\n'.join(res)
 
-    def loads(self, secrets, system):
-        raise NotImplementedError()
+    def load(self, text: str, **kw) -> list[Secret]:
+        lines = text.split('\n')
+        return [Secret(
+            key=line.split('=', 1)[0],
+            plaintext_value=line.split('=', 1)[1].strip('"'),
+            app=kw.get('app', '*'),
+            env=kw.get('env', '*'),
+            type=kw.get('type', 'str')
+        ) for line in lines]
+

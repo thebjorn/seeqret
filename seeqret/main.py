@@ -13,7 +13,7 @@ from .fileutils import is_writable
 from .filterspec import FilterSpec
 from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
-from .cli_group_add import key as add_key
+from .cli_group_add import file as add_file, key as add_key
 import logging
 
 DIRNAME = Path(__file__).parent
@@ -32,11 +32,30 @@ def cli(ctx, log):
 
 
 @cli.command()
-def info():
-    "debugging"
+@click.option('-d', '--dump', is_flag=True, help='Dump the info')
+def info(dump):
+    """List hierarchical command structure.
+    """
     with Context(cli) as ctx:
         info = ctx.to_info_dict()
-        print(json.dumps(info, indent=4))
+        if dump:
+            print(json.dumps(info, indent=4))
+            return
+        
+    def _help(command):
+        txt = command.get('help', '') or ''
+        return txt.split('\n')[0]
+
+    def _print_command_info(command, indent=0):
+        # print(json.dumps(command)[:80])
+        name = '    ' * indent + command['name']
+        help = _help(command)
+        print(f"{name:30} {help}")
+        if 'commands' in command:
+            for subcommand in command['commands'].values():
+                _print_command_info(subcommand, indent + 1)
+
+    _print_command_info(info['command'])
 
 
 @cli.command()
@@ -86,6 +105,8 @@ def serializers():
 
 @cli.command()
 def backup():
+    """Backup the vault to a file.
+    """
     serializer = SERIALIZERS['backup']
     with cd(os.environ['SEEQRET']):
         seeqret_transfer.export_secrets(
@@ -110,7 +131,7 @@ def backup():
               help='Export to linux format.')
 def export(ctx, to, filter, serializer='json-crypt', out=None,
            windows=False, linux=False):
-    """Export the vault to a user
+    """Export the vault to a user (use `seeqret load` to import)
     """
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
@@ -136,8 +157,8 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
               help='(string) value to export for the vault file')
 @click.option('-s', '--serializer', default='json-crypt',
               help='Serializer to use (`seeqret serializers` to list).')
-def save(ctx, from_user, file, value, serializer):
-    """Save exported secrets.
+def load(ctx, from_user, file, value, serializer):
+    """Save exported secrets to local vault.
     """
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
@@ -266,6 +287,7 @@ def add():
 
 
 add.add_command(add_key)
+add.add_command(add_file)
 
 
 @add.command()

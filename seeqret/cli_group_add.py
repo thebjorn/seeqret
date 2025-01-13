@@ -1,6 +1,8 @@
 import os
 
 import click
+
+from seeqret.serializers.serializer import SERIALIZERS
 from .filterspec import FilterSpec
 from .models import Secret
 from .storage.sqlite_storage import SqliteStorage
@@ -58,3 +60,21 @@ def key(ctx, name: str, value: str, app: str = None, env: str = None):  # noqa: 
             ctx.fail(click.style(
                 f'Error: {app}:{env}[{key}] not written to database', fg='red'
             ))
+
+
+@click.command()
+@click.option('--app', default='*', show_default=True,
+              help='The app to add the secret to')
+@click.option('--env', default='*', show_default=True,
+              help='The env(ironment) to add the secret to (e.g. dev/prod)')
+@click.argument('file', type=click.File('r'))
+def file(app, env, file):
+    """Add a new FILE to the vault (.env file format).
+    """
+    serializer_cls = SERIALIZERS.get('env')
+    serializer = serializer_cls()
+    with cd(os.environ['SEEQRET']):
+        storage = SqliteStorage()
+        secrets = serializer.load(file.read(), app=app, env=env)
+        for secret in secrets:
+            storage.add_secret(secret)

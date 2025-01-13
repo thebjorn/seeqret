@@ -9,7 +9,7 @@ class CommandSerializer(BaseSerializer):
     version = 1
     tag = 'command'
 
-    def dumps(self, secrets, system):
+    def dumps(self, secrets, system) -> str:
         res = []
         # quote = '"' if system == 'win32' else "'"
         for s in secrets:
@@ -22,7 +22,7 @@ class CommandSerializer(BaseSerializer):
             )
         return '\n'.join(res)
 
-    def _validate(self, txt):
+    def _validate(self, txt: str) -> Secret:
         if not isinstance(txt, str):
             raise ValidationError('Text must be a string')
         params = txt.split(':', 7)
@@ -48,5 +48,5 @@ class CommandSerializer(BaseSerializer):
             raise ValidationError("invalid fingerprint")
         return secret
 
-    def load(self, text):
+    def load(self, text: str) -> list[Secret]:
         return [self._validate(text)]
