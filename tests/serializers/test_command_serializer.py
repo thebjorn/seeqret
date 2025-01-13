@@ -2,7 +2,7 @@ from click.testing import CliRunner
 
 from seeqret import cd
 from seeqret.db_utils import debug_fetch_users, debug_secrets
-from seeqret.main import cli, user, users, init, list, export, serializers, save
+from seeqret.main import cli, user, users, init, list, export, serializers, load
 from seeqret.cli_group_add import key
 from seeqret.storage.sqlite_storage import SqliteStorage
 from tests.clirunner_utils import print_result
@@ -51,7 +51,7 @@ def test_command_roundtrip():
             storage = SqliteStorage()
             storage.remove_secrets(key='FOO')
 
-        result = runner.invoke(save, output)
+        result = runner.invoke(load, output)
         if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
         # print_result(result)

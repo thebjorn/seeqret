@@ -7,3 +7,4 @@ tmp/
 *.db
 *.key
 .idea/
+.coverage
