@@ -17,10 +17,11 @@ def cd(path):
         os.chdir(old_dir)
 
 
-def run(cmd, echo=True):
+def run(cmd, echo=True, workdir='.'):
     if echo:
         click.secho(f"    > {cmd}", fg='blue')
-    res = os.popen(cmd).read()
+    with cd(workdir):
+        res = os.popen(cmd).read()
     if echo:
         for line in res.split('\n'):
             click.secho(f"      {line}", fg='green')

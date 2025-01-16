@@ -1,15 +1,19 @@
 import json
 import os
 from pathlib import Path
+import textwrap
 
 import click
 from click import Context
+
+from seeqret.run_utils import current_user
+from seeqret.seeqrypt.nacl_backend import load_private_key, load_public_key
 from .storage.sqlite_storage import SqliteStorage
 from . import seeqret_transfer
 # from .context import Context
 from . import seeqret_init, seeqret_add, cd
 from .console_utils import as_table, dochelp
-from .fileutils import is_writable
+from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
 from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
@@ -88,6 +92,17 @@ def users():
         storage = SqliteStorage()
         as_table('username,email,publickey',
                  storage.fetch_users())
+        
+
+@cli.command()
+def keys():
+    """List the admins keys.
+    """
+    with cd(os.environ['SEEQRET']):
+        private_key = read_binary_file('private.key').decode('ascii')
+        public_key = read_binary_file('public.key').decode('ascii')
+        as_table('private_key,public_key',
+                 [[private_key, public_key]])
 
 
 @cli.command()
@@ -225,6 +240,76 @@ def init(ctx: click.Context,
         # remove_directory(vault_dir)
 
     seeqret_init.secrets_init(dirname, user, email, pubkey, key)
+
+
+@cli.group()
+def server():
+    """Server commands."""
+    pass
+
+
+@server.command()
+@click.pass_context
+def init(ctx):
+    """Initialize a server vault
+    """
+    dirname = Path('/srv')
+    vault_dir = dirname / '.seeqret'
+
+    # we want to create dirname / seeqret
+
+    if not dirname.exists():
+        # click.echo(f'The parent of the vault: {dirname} must exist.')
+        ctx.fail(f'The parent of the vault: {dirname} must exist.')
+        # return
+
+    # if not is_writable(dirname):
+    #     click.echo(f'The parent of the vault: {dirname} is not writable.')
+    #     if click.confirm("Do you want me to try to fix this?"):
+    #         pass
+    #     else:
+    #         ctx.fail(f'The parent of the vault: {dirname} must be writable.')
+    #     # ctx.fail(f'The parent of the vault: {dirname} must be writable.')
+    #     # return
+
+    if vault_dir.exists():
+        if not is_writable(vault_dir):
+            ctx.fail(
+                f'The vault: {vault_dir} exists and is not writeable, '
+                'you must delete it manually.'
+            )
+            # return
+        click.confirm(
+            f'The vault: {vault_dir} already exists, overwrite contents?',
+            default=True, abort=True)
+        # remove_directory(vault_dir)
+
+    curuser = current_user()
+    pkey_fname = os.path.expanduser('~/.ssh/seeqret-private.key')
+    pubkey_fname = os.path.expanduser('~/.ssh/seeqret-public.key')
+
+    if not os.path.exists(pkey_fname):
+        click.secho(f"Private key {pkey_fname} does not exist", fg='red')
+        click.echo(textwrap.dedent("""
+            Please create a private key and public key in 
+            
+                ~/.ssh/seeqret-private.key
+                                   
+            and 
+                ~/.ssh/seeqret-public.key
+                                   
+            (run `seeqret keys` locally to display your keys).
+        """))
+        return
+    if not os.path.exists(pubkey_fname):
+        click.secho(f"Public key {pubkey_fname} does not exist", fg='red')
+        return
+
+    user_pkey = load_private_key(pkey_fname)
+    user_pubkey = load_public_key(pubkey_fname)
+    seeqret_init.secrets_server_init(dirname, vault_dir, curuser, user_pkey, user_pubkey)
+    # seeqret_init.secrets_init(dirname, user, email, pubkey, key)
+
 
 
 @cli.command()
