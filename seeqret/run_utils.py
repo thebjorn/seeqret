@@ -22,7 +22,7 @@ def get_seeqret_dir():
         return os.environ['SEEQRET']
     else:
         return '/srv/.seeqret'
-    
+
 
 def is_initialized():
     if not os.path.exists(get_seeqret_dir()):
