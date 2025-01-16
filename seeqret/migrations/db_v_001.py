@@ -1,6 +1,6 @@
 import sqlite3
 import click
-from seeqret import cd
+from ..run_utils import cd
 
 
 def init_db_v_001(vault_dir, user, email):

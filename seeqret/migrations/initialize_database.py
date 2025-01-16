@@ -1,7 +1,7 @@
 import sqlite3
 # import click
 from seeqret.migrations.utils import current_version
-from .. import cd
+from ..run_utils import cd
 
 from . import (
     db_v_001,

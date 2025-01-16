@@ -17,6 +17,31 @@ def cd(path):
         os.chdir(old_dir)
 
 
+def get_seeqret_dir():
+    if sys.platform == 'win32':
+        return os.environ['SEEQRET']
+    else:
+        return '/srv/.seeqret'
+    
+
+def is_initialized():
+    if not os.path.exists(get_seeqret_dir()):
+        return False
+    if not os.path.exists(os.path.join(get_seeqret_dir(), 'seeqrets.db')):
+        return False
+    return True
+
+
+@contextmanager
+def seeqret_dir():
+    old_dir = os.getcwd()
+    os.chdir(get_seeqret_dir())
+    try:
+        yield
+    finally:
+        os.chdir(old_dir)
+
+
 def run(cmd, echo=True, workdir='.'):
     if echo:
         click.secho(f"    > {cmd}", fg='blue')

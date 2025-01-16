@@ -24,7 +24,7 @@ def _secret_i(i):
     )
 
 def _fill_db():
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         for i in range(200):
             storage.add_secret(_secret_i(i))

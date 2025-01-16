@@ -1,9 +1,9 @@
-import os
+# import os
 
 import click
 
 from .console_utils import as_table
-from .run_utils import cd
+from .run_utils import seeqret_dir
 from .filterspec import FilterSpec
 from .storage.sqlite_storage import SqliteStorage
 import logging
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 def key(ctx, filter):
     """Remove a secret from the vault.
     """
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         spec = FilterSpec(filter)
         logger.debug('remove_secrets: %s', filter)

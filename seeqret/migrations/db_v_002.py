@@ -1,6 +1,6 @@
 import sqlite3
 import click
-from .. import cd
+from ..run_utils import cd
 from .utils import (
     column_exists,
 )

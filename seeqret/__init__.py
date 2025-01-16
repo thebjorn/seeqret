@@ -1,9 +1,8 @@
-import os
 import sqlite3
 
 from seeqret.seeqrypt.aes_fernet import decrypt_string
 from seeqret.seeqrypt.utils import load_symetric_key
-from seeqret.run_utils import cd
+from seeqret.run_utils import seeqret_dir
 
 __version__ = '0.1.4'
 
@@ -19,7 +18,7 @@ def get(key, app='*', env='*'):
     Returns:
         The value of the key.
     """
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         cipher = load_symetric_key('seeqret.key')
         # open the database in read-only mode
         cn = sqlite3.connect('file:seeqrets.db?mode=ro', uri=True)

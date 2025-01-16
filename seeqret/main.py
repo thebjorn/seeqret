@@ -1,27 +1,38 @@
 import json
 import os
 from pathlib import Path
-import textwrap
+# import textwrap
 
 import click
 from click import Context
 
-from seeqret.run_utils import current_user
-from seeqret.seeqrypt.nacl_backend import load_private_key, load_public_key
+# from seeqret.run_utils import current_user
+# from seeqret.seeqrypt.nacl_backend import load_private_key, load_public_key
 from .storage.sqlite_storage import SqliteStorage
 from . import seeqret_transfer
 # from .context import Context
-from . import seeqret_init, seeqret_add, cd
+from . import seeqret_init, seeqret_add, seeqret_dir
+from .run_utils import is_initialized, current_user
 from .console_utils import as_table, dochelp
 from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
 from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
 from .cli_group_add import file as add_file, key as add_key
+from .cli_group_server import init as server_init
 import logging
 
 DIRNAME = Path(__file__).parent
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+
+def validate_current_user():
+    user = current_user()
+    with seeqret_dir():
+        storage = SqliteStorage()
+        if not storage.fetch_users(username=user):
+            click.secho("You are not a valid user of this vault", fg='red')
+            os.abort()
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -33,6 +44,8 @@ def cli(ctx, log):
         "seeqrets_dir": os.environ.get("SEEQRETS"),
         "curdir": os.getcwd(),
     }
+    if is_initialized():
+        validate_current_user()
 
 
 @cli.command()
@@ -66,7 +79,7 @@ def info(dump):
 def upgrade():
     """Upgrade the database to the latest version
     """
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         seeqret_init.upgrade_db()
 
 
@@ -76,7 +89,7 @@ def upgrade():
 def list(filter):
     """List the contents of the vault
     """
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         fspec = FilterSpec(filter)
         as_table("App,Env,Key,Value,Type",
@@ -84,21 +97,31 @@ def list(filter):
 
 
 @cli.command()
+def owner():
+    """List the owner of the vault
+    """
+    with seeqret_dir():
+        storage = SqliteStorage()
+        as_table('username,email,publickey',
+                 [storage.fetch_admin()])
+
+
+@cli.command()
 def users():
     """List the users in the vault
     """
     # print("SEEQRET:DIR:", os.environ['SEEQRET'])
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         as_table('username,email,publickey',
                  storage.fetch_users())
-        
+
 
 @cli.command()
 def keys():
     """List the admins keys.
     """
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         private_key = read_binary_file('private.key').decode('ascii')
         public_key = read_binary_file('public.key').decode('ascii')
         as_table('private_key,public_key',
@@ -123,7 +146,7 @@ def backup():
     """Backup the vault to a file.
     """
     serializer = SERIALIZERS['backup']
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         seeqret_transfer.export_secrets(
             'self', FilterSpec('::'),
             serializer, False, False
@@ -154,7 +177,7 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
             f'Unknown serializer: `{serializer}` ({", ".join(SERIALIZERS.keys())}) '
             '(use `seeqret serializers` to list available serializers).'
         )
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         seeqret_transfer.export_secrets(
             ctx,
             to, FilterSpec(filter),
@@ -181,7 +204,7 @@ def load(ctx, from_user, file, value, serializer):
             f'Unknown serializer: {serializer} '
             '(use `seeqret serializers` to list available serializers).'
         )
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         seeqret_transfer.import_secrets(
             from_user, file, value, serializer_cls
         )
@@ -248,68 +271,7 @@ def server():
     pass
 
 
-@server.command()
-@click.pass_context
-def init(ctx):
-    """Initialize a server vault
-    """
-    dirname = Path('/srv')
-    vault_dir = dirname / '.seeqret'
-
-    # we want to create dirname / seeqret
-
-    if not dirname.exists():
-        # click.echo(f'The parent of the vault: {dirname} must exist.')
-        ctx.fail(f'The parent of the vault: {dirname} must exist.')
-        # return
-
-    # if not is_writable(dirname):
-    #     click.echo(f'The parent of the vault: {dirname} is not writable.')
-    #     if click.confirm("Do you want me to try to fix this?"):
-    #         pass
-    #     else:
-    #         ctx.fail(f'The parent of the vault: {dirname} must be writable.')
-    #     # ctx.fail(f'The parent of the vault: {dirname} must be writable.')
-    #     # return
-
-    if vault_dir.exists():
-        if not is_writable(vault_dir):
-            ctx.fail(
-                f'The vault: {vault_dir} exists and is not writeable, '
-                'you must delete it manually.'
-            )
-            # return
-        click.confirm(
-            f'The vault: {vault_dir} already exists, overwrite contents?',
-            default=True, abort=True)
-        # remove_directory(vault_dir)
-
-    curuser = current_user()
-    pkey_fname = os.path.expanduser('~/.ssh/seeqret-private.key')
-    pubkey_fname = os.path.expanduser('~/.ssh/seeqret-public.key')
-
-    if not os.path.exists(pkey_fname):
-        click.secho(f"Private key {pkey_fname} does not exist", fg='red')
-        click.echo(textwrap.dedent("""
-            Please create a private key and public key in 
-            
-                ~/.ssh/seeqret-private.key
-                                   
-            and 
-                ~/.ssh/seeqret-public.key
-                                   
-            (run `seeqret keys` locally to display your keys).
-        """))
-        return
-    if not os.path.exists(pubkey_fname):
-        click.secho(f"Public key {pubkey_fname} does not exist", fg='red')
-        return
-
-    user_pkey = load_private_key(pkey_fname)
-    user_pubkey = load_public_key(pubkey_fname)
-    seeqret_init.secrets_server_init(dirname, vault_dir, curuser, user_pkey, user_pubkey)
-    # seeqret_init.secrets_init(dirname, user, email, pubkey, key)
-
+server.add_command(server_init)
 
 
 @cli.command()
@@ -346,7 +308,7 @@ def pluralize(items, word, plural):
 @click.argument('filter', default='::')
 @click.argument('val')
 def value(ctx, filter: str, val: str):
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         fspec = FilterSpec(filter)
         secrets = storage.fetch_secrets(**fspec.to_filterdict())
@@ -391,7 +353,7 @@ def user(ctx, username, email, pubkey):
        https://raw.githubusercontent.com/user/project/refs/heads/main/public.key
     """
     click.secho(f'Adding a new user {username}|{email}|{pubkey}', fg='blue')
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         # click.secho(f'Fetching public key: {url}', fg='blue')
         # pubkey = seeqret_add.fetch_pubkey_from_url(url)
         seeqret_add.add_user(pubkey, username, email)

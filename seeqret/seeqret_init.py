@@ -8,17 +8,17 @@ import sys
 
 from seeqret.migrations.initialize_database import init_db
 from seeqret.db_utils import fetch_admin
+from seeqret.seeqret_add import add_user
 from seeqret.seeqrypt.nacl_backend import (
     generate_private_key,
     private_key,
     public_key,
     save_public_key,
 )
-from seeqret.seeqrypt.utils import generate_symetric_key
+from .seeqrypt.utils import generate_symetric_key
 
-from seeqret.fileutils import is_encrypted, attrib_cmd, write_binary_file
-from seeqret.run_utils import run
-from seeqret import cd
+from .fileutils import is_encrypted, attrib_cmd, write_binary_file
+from .run_utils import run, seeqret_dir, cd
 
 DRIVE_TYPES = {
     0: 'Drive Unknown',
@@ -52,7 +52,7 @@ def _validate_vault_dir(dirname, vaultname):
                     # ignore vaultname directory (add to .bzrignore)
                     with open(parent.joinpath('.bzrignore'), 'a') as f:
                         f.write(f'\n{vaultname}\n')
-                else:   
+                else:
                     click.echo(f'{parent} is a {vcs[1:]} repository, aborting.')
                     abort()
 
@@ -68,15 +68,20 @@ def _validate_vault_dir(dirname, vaultname):
                 abort()
 
 
-def secrets_server_init(dirname, vault_dir, curuser, user_pkey, user_pubkey):
+def secrets_server_init(dirname, vault_dir, curuser, email, pubkey):
+    owner = run("hostname").split('.')[0]
     print("SEQRET:SERVER_INIT")
     _validate_vault_dir(dirname, '.seeqret')
     setup_vault(vault_dir, curuser)
+    create_user_keys(vault_dir, owner)
+    init_db(vault_dir, owner, f"{owner}@{owner}")
+    with cd(os.path.join(dirname, '.seeqret')):
+        add_user(pubkey, curuser, email)
     # TODO: we'll need system public/private keys so exports are from the
     #       system user...
     #       This means that each user will need to add the system user
     #       (eg. hostname) as a user in their own vault.
-    create_system_key(vault_dir)
+    # create_system_key(vault_dir)
 
 
 # seeqret init
@@ -136,18 +141,21 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
         if os.environ.get('TESTING', "") == "TRUE":
             os.environ["SEEQRET"] = os.path.abspath(vault_dir)
         else:
-            run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
-    click.echo("I've set the SEEQRET environment variable to the vault "
-               "directory")
-    click.echo("Please close this window and open a new one to continue.")
-    click.echo('or run\n\n')
-    click.echo(f'    set "SEQRET={os.path.abspath(vault_dir)}"')
-    click.echo('\n\nin the current window to continue here.')
+            if sys.platform == 'win32':
+                run(f'setx SEEQRET {os.path.abspath(vault_dir)}')
+
+    if sys.platform == 'win32':
+        click.echo("I've set the SEEQRET environment variable to the vault "
+                   "directory")
+        click.echo("Please close this window and open a new one to continue.")
+        click.echo('or run\n\n')
+        click.echo(f'    set "SEQRET={os.path.abspath(vault_dir)}"')
+        click.echo('\n\nin the current window to continue here.')
 
 
 # seeqret upgrade
 def upgrade_db():
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         cn = sqlite3.connect('seeqrets.db')
         with cn:
             admin = fetch_admin(cn)
@@ -160,7 +168,7 @@ def setup_vault(vault_dir, user):
         if not vault_dir.exists():
             click.echo(f'creating {vault_dir}.')
             vault_dir.mkdir(0o770)
-        
+
         with cd(vault_dir.parent):
             seeqret_dir = str(vault_dir)
             if len(run(f"icacls {seeqret_dir}").splitlines()) >= 4:
@@ -207,10 +215,10 @@ def setup_vault(vault_dir, user):
             - I will then set the permissions on the vault_dir to 770.
         """))
         if not click.confirm("Do you want to continue?"):
-            abort() 
+            abort()
         if not vault_dir.exists():
-            click.secho(f'adding group seeqret...', fg='blue')
-            run(f"sudo getent group seeqret || sudo groupadd seeqret")
+            click.secho('adding group seeqret...', fg='blue')
+            run("sudo getent group seeqret || sudo groupadd seeqret")
             if not run("sudo getent group seeqret"):
                 click.echo("Could not create group seeqret")
                 abort()
@@ -229,7 +237,7 @@ def setup_vault(vault_dir, user):
             run(f"sudo chmod g+w {vault_dir.parent}")
             try:
                 vault_dir.mkdir(0o770)
-            except PermissionError as e:
-                click.echo(f"You must login again, and reissue the command to continue.")
+            except PermissionError:
+                click.echo("You must login again, and reissue the command to continue.")
                 abort()
         run(f"sudo chmod g+w {vault_dir}")
