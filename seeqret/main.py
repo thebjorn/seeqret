@@ -30,6 +30,8 @@ def validate_current_user():
     user = current_user()
     with seeqret_dir():
         storage = SqliteStorage()
+        # print("CURRENT USER:", user)
+        # print("USERS:", storage.fetch_users(username=user))
         if not storage.fetch_users(username=user):
             click.secho("You are not a valid user of this vault", fg='red')
             os.abort()

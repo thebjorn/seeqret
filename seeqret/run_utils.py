@@ -65,7 +65,8 @@ def current_user():
 
         name_buffer = ctypes.create_unicode_buffer(size.contents.value)
         GetUserNameExW(sam_compatible, name_buffer, size)
-        return name_buffer.value
+        domain_name = name_buffer.value
+        return domain_name.split('\\')[1]
     else:
         import pwd
         # username (e.g. thebjorn)
