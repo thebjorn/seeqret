@@ -54,7 +54,7 @@ def _validate_vault_dir(dirname, vaultname):
                         f.write(f'\n{vaultname}\n')
                 else:
                     click.echo(f'{parent} is a {vcs[1:]} repository, aborting.')
-                    abort()
+                    return False
 
     if sys.platform == 'win32':
         from win32 import win32file
@@ -65,13 +65,16 @@ def _validate_vault_dir(dirname, vaultname):
             click.echo(f'win32file.GetDriveType("{drive}")'
                        f' returned {drive_type}.')
             if not click.confirm('Do you want to continue?'):
-                abort()
+                return False
+
+    return True
 
 
 def secrets_server_init(dirname, vault_dir, curuser, email, pubkey):
     owner = run("hostname").split('.')[0]
     print("SEQRET:SERVER_INIT")
-    _validate_vault_dir(dirname, '.seeqret')
+    if not _validate_vault_dir(dirname, '.seeqret'):
+        return False
     setup_vault(vault_dir, curuser)
     create_user_keys(vault_dir, owner)
     init_db(vault_dir, owner, f"{owner}@{owner}")
@@ -94,7 +97,8 @@ def secrets_init(dirname, user, email, pubkey=None, key=None):
         by creating a new directory {seeqret_dir} and setting permissions.
     '''))
 
-    _validate_vault_dir(dirname, 'seeqret')
+    if not _validate_vault_dir(dirname, 'seeqret'):
+        return False
     setup_vault(seeqret_dir, user)
     create_user_keys(seeqret_dir, user, pubkey, key)
     init_db(seeqret_dir, user, email)
