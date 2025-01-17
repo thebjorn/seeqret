@@ -31,7 +31,7 @@ class Storage:
 
     def fetch_secrets(self, **filters):
         raise NotImplementedError   # pragma: no cover
-    
+
     def fast_get_secret(self, key, app='*', env='*'):
         return self.fetch_secrets(key=key, app=app, env=env)[0]
 

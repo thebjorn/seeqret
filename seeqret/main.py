@@ -273,13 +273,13 @@ def server():
 server.add_command(server_init)
 
 
-@cli.command()
-@click.pass_context
-@click.argument('url')
-def fetch(ctx, url):
-    "Debugging"
-    # XXX: remove me, for debugging...
-    seeqret_add.fetch_pubkey_from_url(url)
+# @cli.command()
+# @click.pass_context
+# @click.argument('url')
+# def fetch(ctx, url):
+#     "Debugging"
+#     # XXX: remove me, for debugging...
+#     seeqret_add.fetch_pubkey_from_url(url)
 
 
 @cli.group()
