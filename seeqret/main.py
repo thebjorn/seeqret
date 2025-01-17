@@ -1,18 +1,15 @@
 import json
 import os
 from pathlib import Path
-# import textwrap
 
 import click
 from click import Context
 
-# from seeqret.run_utils import current_user
-# from seeqret.seeqrypt.nacl_backend import load_private_key, load_public_key
 from .storage.sqlite_storage import SqliteStorage
-from . import seeqret_transfer
-# from .context import Context
-from . import seeqret_init, seeqret_add, seeqret_dir
-from .run_utils import is_initialized, current_user
+from .seeqret_transfer import export_secrets, import_secrets
+from .seeqret_init import secrets_init, upgrade_db
+from .seeqret_add import add_user
+from .run_utils import seeqret_dir, is_initialized, current_user
 from .console_utils import as_table, dochelp
 from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
@@ -82,7 +79,7 @@ def upgrade():
     """Upgrade the database to the latest version
     """
     with seeqret_dir():
-        seeqret_init.upgrade_db()
+        upgrade_db()
 
 
 @cli.command()
@@ -149,7 +146,7 @@ def backup():
     """
     serializer = SERIALIZERS['backup']
     with seeqret_dir():
-        seeqret_transfer.export_secrets(
+        export_secrets(
             'self', FilterSpec('::'),
             serializer, False, False
         )
@@ -180,7 +177,7 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
             '(use `seeqret serializers` to list available serializers).'
         )
     with seeqret_dir():
-        seeqret_transfer.export_secrets(
+        export_secrets(
             ctx,
             to, FilterSpec(filter),
             serializer_cls, out, windows, linux
@@ -207,7 +204,7 @@ def load(ctx, from_user, file, value, serializer):
             '(use `seeqret serializers` to list available serializers).'
         )
     with seeqret_dir():
-        seeqret_transfer.import_secrets(
+        import_secrets(
             from_user, file, value, serializer_cls
         )
 
@@ -264,7 +261,7 @@ def init(ctx: click.Context,
             default=True, abort=True)
         # remove_directory(vault_dir)
 
-    seeqret_init.secrets_init(dirname, user, email, pubkey, key)
+    secrets_init(dirname, user, email, pubkey, key)
 
 
 @cli.group()
@@ -358,4 +355,4 @@ def user(ctx, username, email, pubkey):
     with seeqret_dir():
         # click.secho(f'Fetching public key: {url}', fg='blue')
         # pubkey = seeqret_add.fetch_pubkey_from_url(url)
-        seeqret_add.add_user(pubkey, username, email)
+        add_user(pubkey, username, email)
