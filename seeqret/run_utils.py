@@ -18,7 +18,7 @@ def cd(path):
 
 
 def get_seeqret_dir():
-    if sys.platform == 'win32':
+    if sys.platform == 'win32' or 'CI' in os.environ:
         return os.environ['SEEQRET']
     else:
         return '/srv/.seeqret'
