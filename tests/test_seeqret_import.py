@@ -3,7 +3,6 @@ Test that all modules are importable.
 """
 
 import seeqret
-import seeqret.db_utils
 import seeqret.fileutils
 import seeqret.main
 import seeqret.run_utils
@@ -21,7 +20,6 @@ def test_import_seeqret():
     """
     
     assert seeqret
-    assert seeqret.db_utils
     assert seeqret.fileutils
     assert seeqret.main
     assert seeqret.run_utils

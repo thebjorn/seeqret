@@ -7,7 +7,7 @@ import os
 import sys
 
 from seeqret.migrations.initialize_database import init_db
-from seeqret.db_utils import fetch_admin
+# from seeqret.db_utils import fetch_admin
 from seeqret.seeqret_add import add_user
 from seeqret.seeqrypt.nacl_backend import (
     generate_private_key,
@@ -15,6 +15,7 @@ from seeqret.seeqrypt.nacl_backend import (
     public_key,
     save_public_key,
 )
+from seeqret.storage.sqlite_storage import SqliteStorage
 from .seeqrypt.utils import generate_symetric_key
 
 from .fileutils import is_encrypted, attrib_cmd, write_binary_file
@@ -160,10 +161,11 @@ def create_user_keys(vault_dir, user, pubkey=None, key=None):
 # seeqret upgrade
 def upgrade_db():
     with seeqret_dir():
-        cn = sqlite3.connect('seeqrets.db')
-        with cn:
-            admin = fetch_admin(cn)
-        init_db(os.environ['SEEQRET'], admin['username'], admin['email'])
+        storage = SqliteStorage()
+        admin = storage.fetch_admin()
+        if not admin:
+            return False
+        init_db(os.environ['SEEQRET'], admin.username, admin.email)
 
 
 def setup_vault(vault_dir, user):
