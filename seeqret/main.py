@@ -31,7 +31,8 @@ def validate_current_user():
         # print("USERS:", storage.fetch_users(username=user))
         if not storage.fetch_users(username=user):
             click.secho("You are not a valid user of this vault", fg='red')
-            os.abort()
+            return False
+    return True
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -44,7 +45,8 @@ def cli(ctx, log):
         "curdir": os.getcwd(),
     }
     if is_initialized():
-        validate_current_user()
+        if not validate_current_user():
+            ctx.fail("You are not a valid user of this vault")
 
 
 @cli.command()
