@@ -1,7 +1,7 @@
 import pytest
 import os
 import seeqret
-from seeqret import cd
+from seeqret.run_utils import seeqret_dir
 from seeqret.models import Secret
 from seeqret.seeqret_init import init_db, create_user_keys
 from seeqret.fileutils import remove_file_if_exists
@@ -24,7 +24,7 @@ def _secret_i(i):
     )
 
 def _fill_db():
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         for i in range(200):
             storage.add_secret(_secret_i(i))

@@ -4,20 +4,35 @@ from pathlib import Path
 
 import click
 from click import Context
+
 from .storage.sqlite_storage import SqliteStorage
-from . import seeqret_transfer
-# from .context import Context
-from . import seeqret_init, seeqret_add, cd
+from .seeqret_transfer import export_secrets, import_secrets
+from .seeqret_init import secrets_init, upgrade_db
+from .seeqret_add import add_user
+from .run_utils import seeqret_dir, is_initialized, current_user
 from .console_utils import as_table, dochelp
-from .fileutils import is_writable
+from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
 from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
 from .cli_group_add import file as add_file, key as add_key
+from .cli_group_server import init as server_init
 import logging
 
 DIRNAME = Path(__file__).parent
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+
+def validate_current_user():
+    user = current_user()
+    with seeqret_dir():
+        storage = SqliteStorage()
+        # print("CURRENT USER:", user)
+        # print("USERS:", storage.fetch_users(username=user))
+        if not storage.fetch_users(username=user):
+            click.secho("You are not a valid user of this vault", fg='red')
+            return False
+    return True
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -29,6 +44,9 @@ def cli(ctx, log):
         "seeqrets_dir": os.environ.get("SEEQRETS"),
         "curdir": os.getcwd(),
     }
+    if is_initialized():
+        if not validate_current_user():
+            ctx.fail("You are not a valid user of this vault")
 
 
 @cli.command()
@@ -62,8 +80,8 @@ def info(dump):
 def upgrade():
     """Upgrade the database to the latest version
     """
-    with cd(os.environ['SEEQRET']):
-        seeqret_init.upgrade_db()
+    with seeqret_dir():
+        upgrade_db()
 
 
 @cli.command()
@@ -72,7 +90,7 @@ def upgrade():
 def list(filter):
     """List the contents of the vault
     """
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         fspec = FilterSpec(filter)
         as_table("App,Env,Key,Value,Type",
@@ -80,14 +98,35 @@ def list(filter):
 
 
 @cli.command()
+def owner():
+    """List the owner of the vault
+    """
+    with seeqret_dir():
+        storage = SqliteStorage()
+        as_table('username,email,publickey',
+                 [storage.fetch_admin()])
+
+
+@cli.command()
 def users():
     """List the users in the vault
     """
     # print("SEEQRET:DIR:", os.environ['SEEQRET'])
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         as_table('username,email,publickey',
                  storage.fetch_users())
+
+
+@cli.command()
+def keys():
+    """List the admins keys.
+    """
+    with seeqret_dir():
+        private_key = read_binary_file('private.key').decode('ascii')
+        public_key = read_binary_file('public.key').decode('ascii')
+        as_table('private_key,public_key',
+                 [[private_key, public_key]])
 
 
 @cli.command()
@@ -108,8 +147,8 @@ def backup():
     """Backup the vault to a file.
     """
     serializer = SERIALIZERS['backup']
-    with cd(os.environ['SEEQRET']):
-        seeqret_transfer.export_secrets(
+    with seeqret_dir():
+        export_secrets(
             'self', FilterSpec('::'),
             serializer, False, False
         )
@@ -139,8 +178,8 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
             f'Unknown serializer: `{serializer}` ({", ".join(SERIALIZERS.keys())}) '
             '(use `seeqret serializers` to list available serializers).'
         )
-    with cd(os.environ['SEEQRET']):
-        seeqret_transfer.export_secrets(
+    with seeqret_dir():
+        export_secrets(
             ctx,
             to, FilterSpec(filter),
             serializer_cls, out, windows, linux
@@ -166,8 +205,8 @@ def load(ctx, from_user, file, value, serializer):
             f'Unknown serializer: {serializer} '
             '(use `seeqret serializers` to list available serializers).'
         )
-    with cd(os.environ['SEEQRET']):
-        seeqret_transfer.import_secrets(
+    with seeqret_dir():
+        import_secrets(
             from_user, file, value, serializer_cls
         )
 
@@ -224,16 +263,25 @@ def init(ctx: click.Context,
             default=True, abort=True)
         # remove_directory(vault_dir)
 
-    seeqret_init.secrets_init(dirname, user, email, pubkey, key)
+    secrets_init(dirname, user, email, pubkey, key)
 
 
-@cli.command()
-@click.pass_context
-@click.argument('url')
-def fetch(ctx, url):
-    "Debugging"
-    # XXX: remove me, for debugging...
-    seeqret_add.fetch_pubkey_from_url(url)
+@cli.group()
+def server():
+    """Server commands."""
+    pass
+
+
+server.add_command(server_init)
+
+
+# @cli.command()
+# @click.pass_context
+# @click.argument('url')
+# def fetch(ctx, url):
+#     "Debugging"
+#     # XXX: remove me, for debugging...
+#     seeqret_add.fetch_pubkey_from_url(url)
 
 
 @cli.group()
@@ -261,7 +309,7 @@ def pluralize(items, word, plural):
 @click.argument('filter', default='::')
 @click.argument('val')
 def value(ctx, filter: str, val: str):
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         fspec = FilterSpec(filter)
         secrets = storage.fetch_secrets(**fspec.to_filterdict())
@@ -306,7 +354,7 @@ def user(ctx, username, email, pubkey):
        https://raw.githubusercontent.com/user/project/refs/heads/main/public.key
     """
     click.secho(f'Adding a new user {username}|{email}|{pubkey}', fg='blue')
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         # click.secho(f'Fetching public key: {url}', fg='blue')
         # pubkey = seeqret_add.fetch_pubkey_from_url(url)
-        seeqret_add.add_user(pubkey, username, email)
+        add_user(pubkey, username, email)

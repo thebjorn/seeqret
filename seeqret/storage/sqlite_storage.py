@@ -3,6 +3,8 @@ import re
 import sqlite3
 from contextlib import contextmanager
 
+from ..run_utils import get_seeqret_dir
+
 from ..models import User, Secret
 from .storage import Storage
 from logging import getLogger
@@ -37,7 +39,7 @@ class SqliteStorage(Storage):
 
     @contextmanager
     def connection(self):
-        path = os.path.join(os.environ['SEEQRET'], self.fname)
+        path = os.path.join(get_seeqret_dir(), self.fname)
         logger.debug('Connecting to SQLite: %s', path)
         # print('Connecting to SQLite: %s' % path)
         cn = sqlite3.connect(path)

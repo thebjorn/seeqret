@@ -1,12 +1,10 @@
-import os
-
 import click
 
 from seeqret.serializers.serializer import SERIALIZERS
 from .filterspec import FilterSpec
 from .models import Secret
 from .storage.sqlite_storage import SqliteStorage
-from .run_utils import cd
+from .run_utils import seeqret_dir
 
 
 @click.command()
@@ -32,7 +30,7 @@ def key(ctx, name: str, value: str, app: str = None, env: str = None):  # noqa: 
         fg='blue'
     )
 
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         fspec = FilterSpec(f'{app}:{env}:{name}')
         secrets = storage.fetch_secrets(**fspec.to_filterdict())
@@ -73,7 +71,7 @@ def file(app, env, file):
     """
     serializer_cls = SERIALIZERS.get('env')
     serializer = serializer_cls()
-    with cd(os.environ['SEEQRET']):
+    with seeqret_dir():
         storage = SqliteStorage()
         secrets = serializer.load(file.read(), app=app, env=env)
         for secret in secrets:

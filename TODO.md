@@ -18,6 +18,9 @@
 - [ ] rename admin to owner?
 - [ ] rename users to keyring?
 
+---
+
+- [ ] server installation
 
 # Design
 

@@ -17,10 +17,37 @@ def cd(path):
         os.chdir(old_dir)
 
 
-def run(cmd, echo=True):
+def get_seeqret_dir():
+    if sys.platform == 'win32' or 'CI' in os.environ:
+        return os.environ['SEEQRET']
+    else:
+        return '/srv/.seeqret'
+
+
+def is_initialized():
+    sdir = get_seeqret_dir()
+    if not os.path.exists(sdir):
+        return False
+    if not os.path.exists(os.path.join(sdir, 'seeqrets.db')):
+        return False
+    return True
+
+
+@contextmanager
+def seeqret_dir():
+    old_dir = os.getcwd()
+    os.chdir(get_seeqret_dir())
+    try:
+        yield
+    finally:
+        os.chdir(old_dir)
+
+
+def run(cmd, echo=True, workdir='.'):
     if echo:
         click.secho(f"    > {cmd}", fg='blue')
-    res = os.popen(cmd).read()
+    with cd(workdir):
+        res = os.popen(cmd).read()
     if echo:
         for line in res.split('\n'):
             click.secho(f"      {line}", fg='green')
@@ -39,7 +66,8 @@ def current_user():
 
         name_buffer = ctypes.create_unicode_buffer(size.contents.value)
         GetUserNameExW(sam_compatible, name_buffer, size)
-        return name_buffer.value
+        domain_name = name_buffer.value
+        return domain_name.split('\\')[1]
     else:
         import pwd
         # username (e.g. thebjorn)
