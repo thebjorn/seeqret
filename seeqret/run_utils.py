@@ -25,9 +25,10 @@ def get_seeqret_dir():
 
 
 def is_initialized():
-    if not os.path.exists(get_seeqret_dir()):
+    sdir = get_seeqret_dir()
+    if not os.path.exists(sdir):
         return False
-    if not os.path.exists(os.path.join(get_seeqret_dir(), 'seeqrets.db')):
+    if not os.path.exists(os.path.join(sdir, 'seeqrets.db')):
         return False
     return True
 

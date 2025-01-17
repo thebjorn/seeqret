@@ -1,7 +1,7 @@
 import pytest
 import os
 import seeqret
-from seeqret import cd
+from seeqret.run_utils import seeqret_dir
 from seeqret.models import Secret
 from seeqret.seeqret_init import init_db, create_user_keys
 from seeqret.fileutils import remove_file_if_exists

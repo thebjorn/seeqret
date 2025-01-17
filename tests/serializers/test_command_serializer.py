@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from seeqret import cd
+from seeqret.run_utils import cd
 from seeqret.db_utils import debug_fetch_users, debug_secrets
 from seeqret.main import cli, user, users, init, list, export, serializers, load
 from seeqret.cli_group_add import key
