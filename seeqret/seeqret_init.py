@@ -75,7 +75,7 @@ def secrets_server_init(dirname, vault_dir, curuser, email, pubkey):
     print("SEQRET:SERVER_INIT")
     if not _validate_vault_dir(dirname, '.seeqret'):
         return False
-    setup_vault(vault_dir, curuser)
+    setup_vault(vault_dir, curuser, type='server')
     create_user_keys(vault_dir, owner)
     init_db(vault_dir, owner, f"{owner}@{owner}")
     with cd(os.path.join(dirname, '.seeqret')):
@@ -99,7 +99,7 @@ def secrets_init(dirname, user, email, pubkey=None, key=None):
 
     if not _validate_vault_dir(dirname, 'seeqret'):
         return False
-    setup_vault(seeqret_dir, user)
+    setup_vault(seeqret_dir, user, type='client')
     create_user_keys(seeqret_dir, user, pubkey, key)
     init_db(seeqret_dir, user, email)
 
@@ -167,7 +167,7 @@ def upgrade_db():
         init_db(os.environ['SEEQRET'], admin.username, admin.email)
 
 
-def setup_vault(vault_dir, user):
+def setup_vault(vault_dir, user, type='client'):
 
     if os.name == 'nt':
         if not vault_dir.exists():
@@ -212,13 +212,18 @@ def setup_vault(vault_dir, user):
             else:
                 click.echo("vault is encrypted")
     else:
-        # linux... (server vault)
+        # linux... (server vault or CI)
+        if type == 'client':
+            vault_dir.mkdir(0o770)
+            return
+
         click.echo(textwrap.dedent(f"""\
             - I will now create a group called 'seeqret' and add the current user to it.
             - I will also set the permissions on the {vault_dir.parent} to be
               owned by group 'seeqret' and set the groupid and sticky bits.
             - I will then set the permissions on the vault_dir to 770.
         """))
+
         if not click.confirm("Do you want to continue?"):
             abort()
         if not vault_dir.exists():
