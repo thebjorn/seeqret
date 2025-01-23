@@ -15,7 +15,7 @@ class EnvSerializer(BaseSerializer):
 
         res = []
         for secret in secrets:
-            res.append(f'{secret.key}={secret.value}')
+            res.append(f'{secret.key}="{secret.value}"')
 
         return '\n'.join(res)
 

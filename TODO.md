@@ -21,6 +21,7 @@
 ---
 
 - [ ] server installation
+- [ ] re-key database
 
 # Design
 
