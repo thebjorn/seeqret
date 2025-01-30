@@ -36,6 +36,7 @@ def validate_current_user():
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
+@click.version_option()
 @click.pass_context
 @click.option('-L', '--log', default="ERROR")
 def cli(ctx, log):
@@ -118,10 +119,9 @@ def users(export):
         users = storage.fetch_users()
         if export:
             for user in users:
-                click.echo(f"seeqret add user --username {user.username} --email {user.email} --pubkey {user.pubkey}")
+                click.echo(f"seeqret add user --username {user.username} --email {user.email} --pubkey {user.pubkey}")  # noqa
         else:
-            as_table('username,email,publickey',
-                     users)
+            as_table('username,email,publickey', users)
 
 
 @cli.command()
@@ -149,14 +149,53 @@ def serializers():
 
 
 @cli.command()
-def backup():
+@click.pass_context
+def env(ctx):
+    """Read filters from env.template and export values from the vault to an .env file.
+    """
+    with open('env.template', 'r') as f:
+        filters = [FilterSpec(line.strip())
+                   for line in f.readlines() if line.strip()]
+
+    envserializer = SERIALIZERS['env']()
+    with seeqret_dir():
+        storage = SqliteStorage()
+
+        errors = 0
+        secrets = []
+        keys = set()
+        for fspec in filters:
+            for secret in storage.fetch_secrets(**fspec.to_filterdict()):
+                if secret.key not in keys:
+                    secrets.append(secret)
+                    keys.add(secret.key)
+                else:
+                    click.secho(f"Duplicate key: {secret.key}", fg='red')
+                    errors += 1
+        if errors:
+            click.secho(f"\nFound {errors} duplicate keys (not creating .env file)", bg='red', fg='bright_yellow')  # noqa
+            return
+
+        # as_table('app,env,key,value,type', secrets)
+        res = envserializer.dumps(secrets, False)
+        print(res)
+        print()
+
+        with open(os.path.join(ctx.obj['curdir'], '.env'), 'w') as f:
+            f.write(res)
+        click.secho(f"\nCreated .env file with {len(secrets)} secrets", fg='green')
+
+
+@cli.command()
+@click.pass_context
+def backup(ctx):
     """Backup the vault to a file.
     """
     serializer = SERIALIZERS['backup']
     with seeqret_dir():
         export_secrets(
-            'self', FilterSpec('::'),
-            serializer, False, False
+            ctx, to='self', fspec=FilterSpec('::'),
+            serializer=serializer, out=False, windows=False, linux=False
         )
 
 

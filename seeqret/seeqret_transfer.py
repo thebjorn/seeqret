@@ -1,4 +1,3 @@
-# import sqlite3
 import os
 import sys
 
@@ -26,7 +25,8 @@ def import_secrets(sender, file, value, serializer):
         storage.add_secret(secret)
 
 
-def export_secrets(ctx, to: str, fspec: FilterSpec, serializer, out, windows, linux):
+def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
+                   out=None, windows=False, linux=False):
     """seeqret export <user>
 
        Exports secrets from a SQLite database, preparing them for secure
