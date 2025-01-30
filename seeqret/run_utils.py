@@ -25,6 +25,8 @@ def get_seeqret_dir():
 
 
 def is_initialized():
+    if 'SEEQRET' not in os.environ:
+        return False
     sdir = get_seeqret_dir()
     if not os.path.exists(sdir):
         return False

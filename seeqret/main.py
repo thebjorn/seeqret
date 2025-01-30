@@ -108,14 +108,20 @@ def owner():
 
 
 @cli.command()
-def users():
+@click.option('--export', is_flag=True, help='Export the users for import into another vault')
+def users(export):
     """List the users in the vault
     """
     # print("SEEQRET:DIR:", os.environ['SEEQRET'])
     with seeqret_dir():
         storage = SqliteStorage()
-        as_table('username,email,publickey',
-                 storage.fetch_users())
+        users = storage.fetch_users()
+        if export:
+            for user in users:
+                click.echo(f"seeqret add user --username {user.username} --email {user.email} --pubkey {user.pubkey}")
+        else:
+            as_table('username,email,publickey',
+                     users)
 
 
 @cli.command()
@@ -234,7 +240,7 @@ def init(ctx: click.Context,
          email: str,
          pubkey: str | None = None,
          key: str | None = None):
-    """Initialize a new vault
+    """Initialize a new vault in DIR
     """
     dirname = Path(dir).resolve()
     vault_dir = dirname / 'seeqret'
