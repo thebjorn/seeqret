@@ -226,8 +226,8 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
     with seeqret_dir():
         export_secrets(
             ctx,
-            to, FilterSpec(filter),
-            serializer_cls, out, windows, linux
+            to=to, fspec=FilterSpec(filter),
+            serializer=serializer_cls, out=out, windows=windows, linux=linux
         )
 
 
