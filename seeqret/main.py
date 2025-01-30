@@ -158,6 +158,7 @@ def env(ctx):
                    for line in f.readlines() if line.strip()]
 
     envserializer = SERIALIZERS['env']()
+    curdir = os.getcwd()
     with seeqret_dir():
         storage = SqliteStorage()
 
@@ -181,7 +182,12 @@ def env(ctx):
         print(res)
         print()
 
-        with open(os.path.join(ctx.obj['curdir'], '.env'), 'w') as f:
+        try:
+            curdir = ctx.obj['curdir']
+        except:  # noqa
+            pass
+
+        with open(os.path.join(curdir, '.env'), 'w') as f:
             f.write(res)
         click.secho(f"\nCreated .env file with {len(secrets)} secrets", fg='green')
 
