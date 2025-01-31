@@ -5,17 +5,17 @@
 [![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
 [![pypi](https://img.shields.io/pypi/v/seeqret?label=pypi%20seeqret)](https://pypi.org/project/seeqret/)
 [![downloads](https://pepy.tech/badge/seeqret)](https://pepy.tech/project/seeqret)
+[![Socket Badge](https://socket.dev/api/badge/pypi/package/seeqret/0.1.7?artifact_id=tar-gz)](https://socket.dev/pypi/package/seeqret/overview/0.1.7/tar-gz)
 <a href="https://github.com/thebjorn/seeqret"><img src="docs/github-mark/github-mark.png" width="25" height="25"></a>
 
-![codecov](https://codecov.io/gh/thebjorn/seeqret/graphs/sunburst.svg?token=5PQOZLTSYD)
 
-<img src="docs/seeqret-logo-256.png" width=100 style="float:right">
+<img src="https://codecov.io/gh/thebjorn/seeqret/graphs/tree.svg?token=5PQOZLTSYD" width=160 style="float:right">
+
+<img src="https://raw.githubusercontent.com/thebjorn/seeqret/master/docs/seeqret-logo-256.png?sanitize=true" style="margin-inline:auto;display:block">
 
 # Seeqret: Safely transferring code secrets
 (very much a work in progress)
 
-
-![Seeqret Logo](docs/seeqret-logo-256.png)
 
 <!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
 
@@ -69,13 +69,13 @@ You can make the following assumptions:
 2. the secrets should not exist in plain-text when they are not used (e.g. a
    database password is only _used_ when logging into the database - it shouldn't exist in memory outside of this process[^3]).
 3. a subset of secrets needs to be **shared with new developers** in a secure way.
-4. there should be a command line utility (`secrets`) to
-   - `secrets set <key> <value>`: set a secret
-   - `secrets get <key>`: get a secret
-   - `secrets export <user> <keys..>` export a subset of the secrets for transmission (e.g. by email) to a new developer
-   - `secrets import <keys..>` import keys received by e.g. email
+4. there should be a command line utility (`seeqret`) to
+   - `seeqret add key <key> <value>`: set a secret
+   - `seeqret get <key>`: get a secret
+   - `seeqret export <user> <keys..>` export a subset of the secrets for transmission (e.g. by email) to a new developer
+   - `seeqret import <keys..>` import keys received by e.g. email
 5. and a library/API to
-   - `secrets.get(key)`: get a secret (this should be a fast O(1) operation)
+   - `seeqret.get(key)`: get a secret (this should be a fast O(1) operation)
 5. the secrets should be easy to update[^1].
 6. it should be possible to backup the secrets.
 7. _(bonus)_: the secrets should be easy to rotate[^2].
@@ -92,12 +92,29 @@ You can make the following assumptions:
 7. **Developer leaves:** How do you revoke access to the secrets for a developer that leaves?
 
 
-# Code
-The code in the `filecrypt.py` file is from [Asymetric Encryption](https://www.youtube.com/watch?v=bd5nsMscPo0) which is well worth watching...
+# Installation
 
-The code in `pgp_filecrypt.py` contains the code needed to do pgp encryption/decryption (here you need to set the trust level when importing keys to the people you want to send encrypted messages to).
+## Developer machine
+To install the vault under c:\home (the directory must not be on a network drive or inside a version
+controlled directory):
+
+```bash
+pip install seeqret
+seeqret init c:\home --email <your-email>
+seeqret users
+```
 
 
+## Server
+
+```bash
+seeqret server init
+```
+
+...
+
+
+---
 [^1]: Updating means manually changing the secret (both in the storage and the service it protects), e.g. when a password expires/is compromised/a devloper leaves/etc.
 
 [^2]: Rotation is the process of periodically updating a secret. Ideally this

@@ -23,6 +23,11 @@
 - [ ] server installation
 - [ ] re-key database
 
+---
+
+- [ ] update documentation
+
+
 # Design
 
 - [x] `seeqret list --filter ...`
