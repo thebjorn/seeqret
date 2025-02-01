@@ -23,6 +23,10 @@
 - [ ] server installation
 - [ ] re-key database
 
+- `ssh thebjorn@myserver.com "/srv/venv/dev310/bin/python -V"` looks promising
+  requires `%userprofile%\.ssh\id_rsa` to be present, valid, and have the
+  correct permissions.
+
 ---
 
 - [ ] update documentation
