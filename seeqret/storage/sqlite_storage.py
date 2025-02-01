@@ -48,20 +48,29 @@ class SqliteStorage(Storage):
         cn.close()
         logger.debug('Closed connection to SQLite: %s', path)
 
+    def _where_field(self, field: str, value: str) -> tuple[str, list]:
+        op = 'like' if re.search(r'[\[.*]', value) else '='
+        return f"{field} {op} ? ", [glob_to_sql(value) if op == 'like' else value]
+
+    def _where_clause(self, filters: dict) -> tuple[str, list]:
+        where = []
+        params = []
+        if filters:
+            for k, v in filters.items():
+                op = 'like' if re.search(r'[\[.*]', v) else '='
+                where.append(f"{k} {op} ? ")
+                params.append(glob_to_sql(v) if op == 'like' else v)
+            return ' where ' + ' and '.join(where), params
+        return '', []
+
+
     def execute_sql(self, sql, **filters):
         with self.connection() as cn:
             order_by = ""
             if isinstance(sql, tuple):
                 sql, order_by = sql
-            params = []
-            where = []
-            if filters:
-                sql += " where "
-                for k, v in filters.items():
-                    op = 'like' if re.search(r'[\[.*]', v) else '='
-                    where.append(f"{k} {op} ? ")
-                    params.append(glob_to_sql(v) if op == 'like' else v)
-            sql += " and ".join(where) + order_by
+            where, params = self._where_clause(filters)
+            sql += where + order_by
             logger.debug('Executing SQL: %s params: %s',
                          one_line(sql), params)
             res = cn.execute(sql, params).fetchall()

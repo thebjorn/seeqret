@@ -1,5 +1,6 @@
 import re
 import logging
+from typing import Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +76,12 @@ class FilterSpec:
         # print("MATCH:", regex.match(val))
         return regex.match(val) is not None
 
-    def matches(self, item: (str, str, str)) -> bool:
+    def matches(self, item: tuple[str, str, str]) -> bool:
         return all(self.match_item(val, pattern)
                    for val, pattern
                    in zip(item, (self.app, self.env, self.name)))
 
-    def filter(self, items: list[(str, str, str)]) -> list:
+    def filter(self, items: list[(str, str, str)]) -> Iterator[tuple[str, str, str]]:
         for item in items:
-            # print("ITEM:", item)
-            # print("-------------------")
             if self.matches(item):
                 yield item
