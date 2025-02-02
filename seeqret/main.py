@@ -99,6 +99,24 @@ def list(filter):
 
 
 @cli.command()
+@click.pass_context
+@click.argument('filter')
+def get(ctx, filter):
+    """Get the value of a secret (specified by FILTER).
+    """
+    with seeqret_dir():
+        storage = SqliteStorage()
+        fspec = FilterSpec(filter)
+        secrets = storage.fetch_secrets(**fspec.to_filterdict())
+        if len(secrets) > 1:
+            ctx.fail(f"Found {len(secrets)} secrets for {filter}")
+        if not secrets:
+            ctx.fail(f"No secrets found for {filter}")
+        secret = secrets[0]
+        click.echo(secret.value)
+
+
+@cli.command()
 def owner():
     """List the owner of the vault
     """
@@ -359,7 +377,10 @@ def pluralize(items, word, plural):
 @click.pass_context
 @click.argument('filter', default='::')
 @click.argument('val')
-def value(ctx, filter: str, val: str):
+@click.option('--all', is_flag=True, help='Update all secrets for the filter')
+def value(ctx, filter: str, val: str, all: bool):
+    """Update the secret (FILTER) to the value (VAL)
+    """
     with seeqret_dir():
         storage = SqliteStorage()
         fspec = FilterSpec(filter)
@@ -367,9 +388,10 @@ def value(ctx, filter: str, val: str):
         if not secrets:
             ctx.fail(f'No secrets found for {filter}')
         if len(secrets) > 1:
-            as_table('app,env,key,value,type', secrets)
-            if not click.confirm("Update all values?"):
-                ctx.fail('Aborted')
+            if not all:
+                as_table('app,env,key,value,type', secrets)
+                if not click.confirm("Update all values?"):
+                    ctx.fail('Aborted')
         for secret in secrets:
             secret.value = val
             storage.update_secret(secret)

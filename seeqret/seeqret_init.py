@@ -36,7 +36,7 @@ def _validate_vault_dir(dirname, vaultname):
     vcs_dirs = ['.svn', '.git', '.hg', '.bzr']
     for parent in list(dirname.parents) + [dirname]:
         for vcs in vcs_dirs:
-            if parent.joinpath(vcs).exists():
+            if parent.joinpath(vcs).exists():  # pragma: nocover
                 if vcs == '.git':
                     # ignore vaultname directory (add to .gitignore)
                     with open(parent.joinpath('.gitignore'), 'a') as f:

@@ -52,17 +52,31 @@ class SqliteStorage(Storage):
         op = 'like' if re.search(r'[\[.*]', value) else '='
         return f"{field} {op} ? ", [glob_to_sql(value) if op == 'like' else value]
 
+    def _where_field_or(self, field: str, values: list) -> tuple[str, list]:
+        where = []
+        params = []
+        for v in values:
+            if v == '*':
+                where_clause = f"{field} = ?"
+            else:
+                where_clause, _where_params = self._where_field(field, v)
+            where.append(where_clause)
+            params.append(v)
+        return '(' + ' or '.join(where) + ')', params
+
     def _where_clause(self, filters: dict) -> tuple[str, list]:
         where = []
         params = []
         if filters:
             for k, v in filters.items():
-                op = 'like' if re.search(r'[\[.*]', v) else '='
-                where.append(f"{k} {op} ? ")
-                params.append(glob_to_sql(v) if op == 'like' else v)
+                if ',' in v:
+                    where_clause, where_params = self._where_field_or(k, v.split(','))
+                else:
+                    where_clause, where_params = self._where_field(k, v)
+                where.append(where_clause)
+                params.extend(where_params)
             return ' where ' + ' and '.join(where), params
         return '', []
-
 
     def execute_sql(self, sql, **filters):
         with self.connection() as cn:
