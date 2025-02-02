@@ -58,10 +58,11 @@ class SqliteStorage(Storage):
         for v in values:
             if v == '*':
                 where_clause = f"{field} = ?"
+                params.append(v)
             else:
-                where_clause, _where_params = self._where_field(field, v)
+                where_clause, where_params = self._where_field(field, v)
+                params.extend(where_params)
             where.append(where_clause)
-            params.append(v)
         return '(' + ' or '.join(where) + ')', params
 
     def _where_clause(self, filters: dict) -> tuple[str, list]:
