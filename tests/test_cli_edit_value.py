@@ -7,7 +7,7 @@ from seeqret.main import value, init, get
 from tests.clirunner_utils import print_result
 
 
-def test_info():
+def test_edit_value():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
         result = runner.invoke(init, [

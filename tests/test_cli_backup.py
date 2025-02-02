@@ -6,7 +6,7 @@ from seeqret.main import backup, init
 from tests.clirunner_utils import print_result
 
 
-def test_info():
+def test_backup():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
         result = runner.invoke(init, [
