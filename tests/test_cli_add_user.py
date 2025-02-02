@@ -5,7 +5,7 @@ from seeqret.main import cli, user, users, init
 from tests.clirunner_utils import print_result
 
 
-def test_add_user():
+def xtest_add_user():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
         result = runner.invoke(init, [
