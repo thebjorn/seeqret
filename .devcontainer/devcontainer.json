@@ -1,0 +1,5 @@
+{
+	"name": "devcontainer",
+	"image": "mcr.microsoft.com/devcontainers/python:3",
+	"postCreateCommand": "pip install -r requirements.txt && echo '\n# add python modules to PATH globally\nPATH=$PATH:~/.local/bin/' >> ~/.bashrc"
+}

@@ -18,7 +18,7 @@ def cd(path):
 
 
 def get_seeqret_dir():
-    if sys.platform == 'win32' or 'CI' in os.environ:
+    if sys.platform == 'win32' or 'CI' in os.environ or 'SEEQRET' in os.environ:
         return os.environ['SEEQRET']
     else:
         return '/srv/.seeqret'
@@ -73,6 +73,7 @@ def current_user():
     else:
         import pwd
         # username (e.g. thebjorn)
+        print("CURRENT USER", pwd.getpwuid(os.geteuid()).pw_name)
         return pwd.getpwuid(os.geteuid()).pw_name
 
 

@@ -81,7 +81,7 @@ class FilterSpec:
                    for val, pattern
                    in zip(item, (self.app, self.env, self.name)))
 
-    def filter(self, items: list[(str, str, str)]) -> Iterator[tuple[str, str, str]]:
+    def filter(self, items: list[tuple[str, str, str]]) -> Iterator[tuple[str, str, str]]:
         for item in items:
             if self.matches(item):
                 yield item

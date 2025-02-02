@@ -30,7 +30,7 @@ def _fill_db():
             storage.add_secret(_secret_i(i))
 
 
-# @pytest.mark.skip(reason="don't test performance in CI")
+@pytest.mark.skip(reason="don't test performance in CI")
 def test_performance():
     os.environ['TESTING'] = "TRUE"
     _create_db()

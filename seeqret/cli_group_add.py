@@ -15,13 +15,13 @@ from .run_utils import seeqret_dir
               help='The app to add the secret to')
 @click.option('--env', default='*', show_default=True,
               help='The env(ironment) to add the secret to (e.g. dev/prod)')
-def key(ctx, name: str, value: str, app: str = None, env: str = None):  # noqa: F811
+def key(ctx, name: str, value: str, app: str|None = None, env: str|None = None):  # noqa: F811
     """Add a new NAME -> VALUE mapping.
 
        You can (should) specify the app and environment properties when adding
        a new mapping.
     """
-    if ':' in name or ':' in app or ':' in env:
+    if ':' in name or (isinstance(app, str) and ':' in app) or (isinstance(env, str) and ':' in env):
         ctx.fail(click.style(
             'Colon `:` is not valid in key, app, or env', fg='red'
         ))
@@ -40,8 +40,8 @@ def key(ctx, name: str, value: str, app: str = None, env: str = None):  # noqa: 
                 fg='red'
             ))
         secret = Secret(
-            app=app,
-            env=env,
+            app=app or '*',
+            env=env or '*',
             key=name,
             plaintext_value=value,
             type='str'
@@ -61,15 +61,21 @@ def key(ctx, name: str, value: str, app: str = None, env: str = None):  # noqa: 
 
 
 @click.command()
+@click.pass_context
 @click.option('--app', default='*', show_default=True,
               help='The app to add the secret to')
 @click.option('--env', default='*', show_default=True,
               help='The env(ironment) to add the secret to (e.g. dev/prod)')
 @click.argument('file', type=click.File('r'))
-def file(app, env, file):
+def file(ctx, app, env, file):
     """Add a new FILE to the vault (.env file format).
     """
     serializer_cls = SERIALIZERS.get('env')
+    if not serializer_cls:
+        ctx.fail(click.style(
+            'No serializer found for .env files', fg='red'
+        ))
+    assert serializer_cls is not None
     serializer = serializer_cls()
     with seeqret_dir():
         storage = SqliteStorage()

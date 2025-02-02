@@ -5,14 +5,14 @@ from click.testing import CliRunner
 from seeqret.cli_group_add import key
 from seeqret.main import value, init, get
 from tests.clirunner_utils import print_result
-
+from seeqret.run_utils import current_user
 
 def test_edit_value():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
         result = runner.invoke(init, [
             '.',
-            # '--user=test',
+            '--user=' + current_user(),
             '--email=test@example.com',
         ])
         if result.exit_code != 0:  print_result(result)
