@@ -15,7 +15,7 @@ from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
 from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
-from .cli_group_add import file as add_file, key as add_key
+from .cli_group_add import file as add_file, key as add_key, text as add_text
 from .cli_group_server import init as server_init
 import logging
 
@@ -402,13 +402,14 @@ def value(ctx, filter: str, val: str, all: bool):
 
 @cli.group()
 def add():
-    """Add a new secret, key or user
+    """Add a new secret.
     """
     pass
 
 
 add.add_command(add_key)
 add.add_command(add_file)
+add.add_command(add_text)
 
 
 @add.command()
