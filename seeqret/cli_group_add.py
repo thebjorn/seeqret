@@ -1,4 +1,3 @@
-import sys
 import click
 
 from seeqret.serializers.serializer import SERIALIZERS
@@ -6,8 +5,6 @@ from .filterspec import FilterSpec
 from .models import Secret
 from .storage.sqlite_storage import SqliteStorage
 from .run_utils import seeqret_dir
-
-
 
 
 @click.command()
@@ -30,7 +27,8 @@ def text(ctx, name: str, app: str | None = None, env: str | None = None):  # noq
                 f'Secret {", ".join(s.key for s in secrets)} already exists!',
                 fg='red'
             ))
-        click.secho(f"Enter the secret value for {name} in {app}:{env}. Enter EOF (Ctrl-D) when done.", fg='blue')
+        click.secho(f"Enter the secret value for {name} in {app}:{env}. ", fg='blue')
+        click.secho("Enter EOF (Ctrl-D) when done.", fg='blue')
         value = ''
         while True:
             ch = click.getchar(echo=True)
