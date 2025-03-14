@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 @click.pass_context
 @click.argument('filter')
 def key(ctx, filter):
-    """Remove a secret from the vault.
+    """Remove a secret from the vault specified by FILTER.
     """
     with seeqret_dir():
         storage = SqliteStorage()
