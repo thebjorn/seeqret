@@ -5,7 +5,7 @@
 # from seeqret.run_utils import seeqret_dir
 from seeqret.storage.get_secret import get_secret
 
-__version__ = '0.1.8'
+__version__ = '0.1.9'
 
 
 def get(key, app='*', env='*'):
