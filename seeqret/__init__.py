@@ -7,7 +7,7 @@ def get(key, app='*', env='*'):
     """Get a value from the configuration.
 
     Important: to keep your secrets out of tracebacks etc., you should call
-    this function at the last possible moment. I.e., instead of having a 
+    this function at the last possible moment. I.e., instead of having a
     settings file with:
 
         DB_PASSWORD = seeqret.get("db_password")  # BAD!
