@@ -1,6 +1,6 @@
 from seeqret.storage.get_secret import get_secret
 
-__version__ = '0.1.7'
+__version__ = '0.1.9'
 
 
 def get(key, app='*', env='*'):
