@@ -87,7 +87,7 @@ def upgrade():
 
 @cli.command()
 @click.option('-f', '--filter', default='*', show_default=True,
-              help='filterspec (see XXX)')
+              help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
 def list(filter):
     """List the contents of the vault
     """
@@ -239,7 +239,7 @@ def backup(ctx):
               help='Export to linux format.')
 def export(ctx, to, filter, serializer='json-crypt', out=None,
            windows=False, linux=False):
-    """Export the vault to a user (use `seeqret load` to import)
+    """Export the vault TO a user (use `seeqret load` to import)
     """
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
@@ -421,10 +421,6 @@ add.add_command(add_file)
               help='Public key for the user')
 def user(ctx, username, email, pubkey):
     """Add a new user to the vault from a public key.
-
-       If the public key is on GitHub, the url is the raw url, e.g.
-
-       https://raw.githubusercontent.com/user/project/refs/heads/main/public.key
     """
     click.secho(f'Adding a new user {username}|{email}|{pubkey}', fg='blue')
     with seeqret_dir():
