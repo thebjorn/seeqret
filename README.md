@@ -121,6 +121,7 @@ We make the following assumptions:
 
 
 # Installation and usage
+You must have at least Python 3.10+ to run seeqret!
 
 ## <a name='Developermachine'></a>Developer machine
 To install the vault under c:\home (the directory must _not be on a network drive_ or inside a version
