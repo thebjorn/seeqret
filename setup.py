@@ -13,6 +13,7 @@ setuptools.setup(
     version=version,
     author='Bjorn',
     url='https://github.com/thebjorn/seeqret.git',
+    python_requires='>3.10',
     install_requires=[
         'rsa',
         'python-gnupg',
