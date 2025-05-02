@@ -229,12 +229,12 @@ def backup(ctx):
 @cli.command()
 @click.pass_context
 @click.argument('to')
-@click.option('-f', '--filter', default='',
-              help='A seeqret filter string (see XXX) ')
+@click.option('-f', '--filter', default=[], show_default=True, multiple=True,
+              help='A seeqret filter string (can be used multiple times)')
 @click.option(
-    '-s', '--serializer', default='json-crypt',
+    '-s', '--serializer', default='json-crypt', show_default=True,
     help='Name of serializer to use (`seeqret serializers` to list).')
-@click.option('-o', '--out', default=None,
+@click.option('-o', '--out', default=None, show_default=True,
               help='Output file (default: stdout).')
 @click.option('-w', '--windows', default=False, is_flag=True,
               help='Export to windows format.')
@@ -251,11 +251,12 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
             '(use `seeqret serializers` to list available serializers).'
         )
     with seeqret_dir():
-        export_secrets(
-            ctx,
-            to=to, fspec=FilterSpec(filter),
-            serializer=serializer_cls, out=out, windows=windows, linux=linux
-        )
+        for fspec in filter:
+            export_secrets(
+                ctx,
+                to=to, fspec=FilterSpec(fspec),
+                serializer=serializer_cls, out=out, windows=windows, linux=linux
+            )
 
 
 @cli.command()
