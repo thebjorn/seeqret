@@ -275,6 +275,18 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
 
 
 @cli.command()
+def introduction():
+    """Print an introduction to the vault.
+    """
+    click.echo("Please add me to your vault!\n")
+
+    with seeqret_dir():
+        storage = SqliteStorage()
+        self = storage.fetch_users(username=current_user())[0]
+        click.echo(f"seeqret add user --username {self.username} --email {self.email} --pubkey {self.pubkey}")  # noqa
+
+
+@cli.command()
 @click.pass_context
 @click.option('-u', '--from-user', default='',
               help='Sender.')
