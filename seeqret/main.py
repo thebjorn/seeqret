@@ -228,7 +228,9 @@ def backup(ctx):
 
 @cli.command()
 @click.pass_context
-@click.argument('to')
+@click.option('--to', multiple=True, required=True,
+              help='User(s) to export to (can be used multiple times)'
+                   ' the user(s) must exist in the vault.')
 @click.option('-f', '--filter', default=[], show_default=True, multiple=True,
               help='A seeqret filter string (can be used multiple times)')
 @click.option(
@@ -243,6 +245,13 @@ def backup(ctx):
 def export(ctx, to, filter, serializer='json-crypt', out=None,
            windows=False, linux=False):
     """Export the vault TO a user (use `seeqret load` to import)
+
+       Example:
+
+       seeqret export --to u1 --to u2 --f :app1::FOO* --f :app1::BAR* --s command
+
+       This will export all secrets starting with FOO or BAR from app1
+       to users u1 and u2.
     """
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
@@ -250,13 +259,19 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
             f'Unknown serializer: `{serializer}` ({", ".join(SERIALIZERS.keys())}) '
             '(use `seeqret serializers` to list available serializers).'
         )
+
     with seeqret_dir():
-        for fspec in filter:
-            export_secrets(
-                ctx,
-                to=to, fspec=FilterSpec(fspec),
-                serializer=serializer_cls, out=out, windows=windows, linux=linux
-            )
+        storage = SqliteStorage()
+        for user in to:
+            if user != 'self' and not storage.fetch_users(username=user):
+                ctx.fail(f"User {user} does not exist in the vault")
+            print(f"\nSeeqrets for {user}:")
+            for fspec in filter:
+                export_secrets(
+                    ctx,
+                    to=user, fspec=FilterSpec(fspec),
+                    serializer=serializer_cls, out=out, windows=windows, linux=linux
+                )
 
 
 @cli.command()
