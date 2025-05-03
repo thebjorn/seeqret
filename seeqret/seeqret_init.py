@@ -170,13 +170,17 @@ def upgrade_db():
 def setup_vault(vault_dir, user, type='client'):
 
     if os.name == 'nt':
+        # hmm... do we really want to run on windows home?
+        have_icacls = run("where icacls").strip().endswith('icacls.exe')
+        have_cipher = run("where cipher").strip().endswith('cipher.exe')
+
         if not vault_dir.exists():
             click.echo(f'creating {vault_dir}.')
             vault_dir.mkdir(0o770)
 
         with cd(vault_dir.parent):
             seeqret_dir = str(vault_dir)
-            if len(run(f"icacls {seeqret_dir}").splitlines()) >= 4:
+            if have_icacls and len(run(f"icacls {seeqret_dir}").splitlines()) >= 4:
                 click.echo(f"Tightening permissions on {vault_dir}")
                 click.echo("Granting (F)ull rights to current user only")
                 userdomain = os.environ['USERDOMAIN']
@@ -197,7 +201,7 @@ def setup_vault(vault_dir, user, type='client'):
             else:
                 click.secho(f"{vault_dir} is not indexed", fg='green')
 
-            if not is_encrypted("seeqret"):
+            if have_cipher and not is_encrypted("seeqret"):
                 click.echo(f"encrypting {vault_dir}")
                 run("cipher /e seeqret")
                 click.echo("Checking if encryption worked..")
