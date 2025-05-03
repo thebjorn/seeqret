@@ -5,6 +5,7 @@ from seeqret.main import cli, user, users, init, list, get
 from seeqret.cli_group_add import key, text as add_text
 from seeqret.storage.get_secret import get_secret
 from tests.clirunner_utils import print_result
+from seeqret.run_utils import seeqret_dir
 
 
 def test_add_key():
@@ -36,6 +37,41 @@ def test_add_key():
         if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
         assert result.output == 'BAR\n'
+
+        result = runner.invoke(key, [
+            'BAZ', 'BAR2',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert len(debug_secrets()) == 2
+
+        result = runner.invoke(get, ['myapp:dev:BAZ'])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert result.output == 'BAR2\n'
+
+        result = runner.invoke(list, ['-f::FO*,BA*'])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert 'BAR' in result.output
+        assert 'BAR2' in result.output
+
+        result = runner.invoke(list, ['-f::FOO,BAZ'])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert 'BAR' in result.output
+        assert 'BAR2' in result.output
+
+        result = runner.invoke(list, ['-f::F*,BAZ'])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert 'BAR' in result.output
+        assert 'BAR2' in result.output
+
+        with seeqret_dir():
+            assert get_secret('BAZ', 'myapp', 'dev').value == 'BAR2'
 
 
 

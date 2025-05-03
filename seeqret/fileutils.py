@@ -73,16 +73,16 @@ def is_readable(dirname):
     return os.access(dirname, os.R_OK)
 
 
-def remove_directory(dirname):
-    """Remove a directory, recursively.
-    """
-    if os.path.exists(dirname):
-        for root, dirs, files in os.walk(dirname, topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
-        os.rmdir(dirname)
+# def remove_directory(dirname):
+#     """Remove a directory, recursively.
+#     """
+#     if os.path.exists(dirname):
+#         for root, dirs, files in os.walk(dirname, topdown=False):
+#             for name in files:
+#                 os.remove(os.path.join(root, name))
+#             for name in dirs:
+#                 os.rmdir(os.path.join(root, name))
+#         os.rmdir(dirname)
 
 
 def write_binary_file(fname, content):
