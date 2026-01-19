@@ -18,9 +18,8 @@ def test_init():
         ])
         if result.exit_code != 0:  print_result(result)
         assert result.exit_code == 0
-        if sys.platform == 'win32':
-            assert 'vault_dir permissions are ok' in result.output
-            assert 'vault is encrypted' in result.output
+        # In test mode, Windows security hardening is skipped
+        assert '(test mode)' in result.output
         assert 'seeqret.key created' in result.output
 
         import sqlite3

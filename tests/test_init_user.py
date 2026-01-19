@@ -5,6 +5,7 @@ from seeqret import seeqret_init
 
 
 def test_init():
+    os.environ['TESTING'] = "TRUE"
     with tempfile.TemporaryDirectory() as temp_dir:
         seeqret_init.secrets_init(Path(temp_dir), 'test', 'test@example.com', None)
         # seeqret_init.secrets_init()

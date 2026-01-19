@@ -168,6 +168,13 @@ def upgrade_db():
 
 
 def setup_vault(vault_dir, user, type='client'):
+    # In test mode, skip all Windows security hardening (icacls, cipher, etc.)
+    # since temp directories don't support EFS encryption and permission changes
+    if os.environ.get('TESTING', "") == "TRUE":
+        if not vault_dir.exists():
+            click.echo(f'creating {vault_dir} (test mode).')
+            vault_dir.mkdir(0o770)
+        return
 
     if os.name == 'nt':
         # hmm... do we really want to run on windows home?

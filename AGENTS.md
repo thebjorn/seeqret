@@ -7,6 +7,10 @@ Consult CLAUDE.md/GEMINI.md for agent-specific instructions.
 
 Seeqret is a Python CLI tool and library for securely storing and transferring code secrets (passwords, API keys, etc.). Secrets are stored encrypted in a SQLite database with platform-specific protections (encrypted folders on Windows, 0600 permissions on Linux).
 
+## virtual Environments
+
+Make sure to always use the seeqret311 virtual environment for development and testing.
+
 ## Build and Development Commands
 
 ```bash
