@@ -8,3 +8,5 @@ tmp/
 *.key
 .idea/
 .coverage
+.md5
+build/
