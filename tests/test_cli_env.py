@@ -106,3 +106,13 @@ def test_env_version_check():
         assert result.exit_code == 1
         assert 'requires seeqret>=99.0' in result.output
         assert 'pip install --upgrade seeqret' in result.output
+
+        # Test with invalid @ directive (misspelled)
+        with open('env.template', 'w') as f:
+            f.write('@secret>=0.3\n')
+            f.write(':dev\n')
+        result = runner.invoke(env)
+        assert result.exit_code == 1
+        assert 'Invalid directive' in result.output
+        assert '@secret>=0.3' in result.output
+        assert 'Expected format: @seeqret>=VERSION' in result.output

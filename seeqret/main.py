@@ -258,6 +258,18 @@ def env(ctx):
                 click.secho("    pip install --upgrade seeqret", fg='blue')
                 ctx.exit(1)
 
+    # Validate @ directives
+    for i, line in enumerate(lines, 1):
+        stripped = line.strip()
+        if stripped.startswith('@') and not parse_env_template_version(stripped):
+            click.secho(
+                f"Error: Invalid directive on line {i}: {stripped}",
+                fg='red'
+            )
+            click.echo("\nExpected format: @seeqret>=VERSION")
+            click.echo("Examples: @seeqret>=0.3  @seeqret>0.2.2  @seeqret==1.0")
+            ctx.exit(1)
+
     filters = [FilterSpec(line.strip())
                for line in lines
                if line.strip()
