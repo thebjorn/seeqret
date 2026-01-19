@@ -26,7 +26,7 @@ def test_rm_key():
         if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
 
-        result = runner.invoke(rm_key, ["myapp:dev:FOO"])
+        result = runner.invoke(rm_key, ["myapp:dev:FOO"], input='y\n')
         if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
 
