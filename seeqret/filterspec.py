@@ -42,11 +42,11 @@ class FilterSpec:
             self.app = '*'
             self.env = '*'
             self.name = parts[0] or '*'
-        if len(parts) == 2:
+        elif len(parts) == 2:
             self.app = parts[0] or '*'
             self.env = parts[1] or '*'
             self.name = '*'
-        if len(parts) == 3:
+        else:  # len(parts) >= 3
             self.app = parts[0] or '*'
             self.env = parts[1] or '*'
             self.name = parts[2] or '*'

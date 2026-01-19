@@ -176,7 +176,8 @@ def env(ctx):
     """
     with open('env.template', 'r') as f:
         filters = [FilterSpec(line.strip())
-                   for line in f.readlines() if line.strip()]
+                   for line in f.readlines()
+                   if line.strip() and not line.strip().startswith('#')]
 
     envserializer = SERIALIZERS['env']()
     curdir = os.getcwd()
