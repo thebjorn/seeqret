@@ -311,6 +311,128 @@ def env(ctx):
         click.secho(f"\nCreated .env file with {len(secrets)} secrets", fg='green')
 
 
+def parse_env_line(line: str) -> tuple[str, str] | None:
+    """Parse a single line from a .env file.
+
+    Handles formats:
+        KEY=value
+        KEY="value"
+        KEY='value'
+        export KEY=value
+
+    Returns:
+        Tuple of (key, value) or None if line is empty/comment
+    """
+    line = line.strip()
+
+    # Skip empty lines and comments
+    if not line or line.startswith('#'):
+        return None
+
+    # Handle 'export KEY=value' format
+    if line.startswith('export '):
+        line = line[7:].strip()
+
+    # Find the = separator
+    if '=' not in line:
+        return None
+
+    key, _, value = line.partition('=')
+    key = key.strip()
+    value = value.strip()
+
+    # Remove surrounding quotes if present
+    if (value.startswith('"') and value.endswith('"')) or \
+       (value.startswith("'") and value.endswith("'")):
+        value = value[1:-1]
+
+    if not key:
+        return None
+
+    return key, value
+
+
+@cli.command()
+@click.pass_context
+@click.argument('filename', type=click.Path(exists=True))
+@click.option('--app', default='*', show_default=True,
+              help='The app to add the secrets to')
+@click.option('--env', default='*', show_default=True,
+              help='The environment to add the secrets to (e.g. dev/prod)')
+@click.option('--update', is_flag=True,
+              help='Update existing secrets instead of skipping them')
+@click.option('--dry-run', is_flag=True,
+              help='Show what would be imported without making changes')
+def importenv(ctx, filename, app, env, update, dry_run):
+    """Import secrets from a .env file.
+
+    Example:
+        seeqret importenv .env.example --app=myapp --env=dev
+    """
+    from .models import Secret
+
+    # Parse the .env file
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+
+    parsed = []
+    for i, line in enumerate(lines, 1):
+        result = parse_env_line(line)
+        if result:
+            key, value = result
+            if ':' in key:
+                click.secho(f"Warning: Skipping line {i}, colon not allowed in key: {key}", fg='yellow')
+                continue
+            parsed.append((key, value))
+
+    if not parsed:
+        click.secho("No secrets found in file", fg='yellow')
+        return
+
+    click.echo(f"Found {len(parsed)} secrets in {filename}")
+
+    if dry_run:
+        click.echo("\nDry run - would import:")
+        for key, value in parsed:
+            display_value = value[:20] + '...' if len(value) > 20 else value
+            click.echo(f"  {app}:{env}:{key} = {display_value}")
+        return
+
+    with seeqret_dir():
+        storage = SqliteStorage()
+        added = 0
+        updated = 0
+        skipped = 0
+
+        for key, value in parsed:
+            # Check if secret already exists
+            existing = storage.fetch_secrets(app=app, env=env, key=key)
+
+            if existing:
+                if update:
+                    existing[0].value = value
+                    storage.update_secret(existing[0])
+                    updated += 1
+                    click.secho(f"  Updated: {key}", fg='blue')
+                else:
+                    skipped += 1
+                    click.secho(f"  Skipped (exists): {key}", fg='yellow')
+            else:
+                secret = Secret(
+                    app=app,
+                    env=env,
+                    key=key,
+                    plaintext_value=value,
+                    type='str'
+                )
+                storage.add_secret(secret)
+                added += 1
+                click.secho(f"  Added: {key}", fg='green')
+
+        click.echo()
+        click.secho(f"Import complete: {added} added, {updated} updated, {skipped} skipped", fg='green')
+
+
 @cli.command()
 @click.pass_context
 def backup(ctx):
