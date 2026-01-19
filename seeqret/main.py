@@ -627,10 +627,24 @@ def pluralize(items, word, plural):
 @edit.command()
 @click.pass_context
 @click.argument('filter', default='::')
-@click.argument('val')
-@click.option('--all', is_flag=True, help='Update all secrets for the filter')
-def value(ctx, filter: str, val: str, all: bool):
-    """Update the secret (FILTER) to the value (VAL)
+@click.argument('value')
+@click.option('--all', is_flag=True, help='Update all matching secrets without prompting')
+def value(ctx, filter: str, value: str, all: bool):
+    """Update secrets matching FILTER to the new VALUE.
+
+    FILTER is a seeqret filter string in the format [app]:[env]:[key].
+    Use * or leave empty for wildcards. Examples:
+        myapp:dev:DB_PASS    - specific secret
+        myapp:dev:           - all secrets in myapp/dev
+        ::API_KEY            - API_KEY in any app/env
+
+    VALUE is the new plaintext value for the secret(s).
+
+    If multiple secrets match, you'll be prompted unless --all is used.
+
+    Examples:
+        seeqret edit value myapp:dev:DB_PASSWORD newsecret123
+        seeqret edit value "::API_*" newkey --all
     """
     with seeqret_dir():
         storage = SqliteStorage()
@@ -644,7 +658,7 @@ def value(ctx, filter: str, val: str, all: bool):
                 if not click.confirm("Update all values?"):
                     ctx.fail('Aborted')
         for secret in secrets:
-            secret.value = val
+            secret.value = value
             storage.update_secret(secret)
 
         click.secho(f"updated {pluralize(secrets, 'secret', 'secrets')}", fg='green')
