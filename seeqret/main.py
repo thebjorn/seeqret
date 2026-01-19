@@ -1,10 +1,12 @@
 import json
 import os
+import re
 from pathlib import Path
 
 import click
 from click import Context
 
+from . import __version__
 from .storage.sqlite_storage import SqliteStorage
 from .seeqret_transfer import export_secrets, import_secrets
 from .seeqret_init import secrets_init, upgrade_db
@@ -18,6 +20,70 @@ from .cli_group_rm import key as rm_key
 from .cli_group_add import key as add_key, text as add_text
 from .cli_group_server import init as server_init
 import logging
+
+
+def parse_version(version_str: str) -> tuple:
+    """Parse a version string into a tuple of integers for comparison."""
+    parts = version_str.strip().split('.')
+    result = []
+    for part in parts:
+        # Extract leading digits only (handles cases like "3a" -> 3)
+        match = re.match(r'(\d+)', part)
+        if match:
+            result.append(int(match.group(1)))
+        else:
+            result.append(0)
+    return tuple(result)
+
+
+def check_version_requirement(requirement: str, current: str) -> tuple[bool, str]:
+    """Check if current version meets the requirement.
+
+    Args:
+        requirement: Version requirement string (e.g., ">=0.3", ">0.2.2", "==0.3")
+        current: Current version string
+
+    Returns:
+        Tuple of (meets_requirement, operator_used)
+    """
+    requirement = requirement.strip()
+
+    if requirement.startswith('>='):
+        op, required = '>=', requirement[2:]
+        return parse_version(current) >= parse_version(required), op
+    elif requirement.startswith('<='):
+        op, required = '<=', requirement[2:]
+        return parse_version(current) <= parse_version(required), op
+    elif requirement.startswith('=='):
+        op, required = '==', requirement[2:]
+        return parse_version(current) == parse_version(required), op
+    elif requirement.startswith('!='):
+        op, required = '!=', requirement[2:]
+        return parse_version(current) != parse_version(required), op
+    elif requirement.startswith('>'):
+        op, required = '>', requirement[1:]
+        return parse_version(current) > parse_version(required), op
+    elif requirement.startswith('<'):
+        op, required = '<', requirement[1:]
+        return parse_version(current) < parse_version(required), op
+    else:
+        # Default to >= if no operator
+        return parse_version(current) >= parse_version(requirement), '>='
+
+
+def parse_env_template_version(first_line: str) -> str | None:
+    """Parse version requirement from env.template first line.
+
+    Expected format: @seeqret>=0.3 or @seeqret>0.2.2
+
+    Returns:
+        Version requirement string (e.g., ">=0.3") or None if not found
+    """
+    first_line = first_line.strip()
+    match = re.match(r'^@seeqret\s*([><=!]+\s*[\d.]+)', first_line, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return None
 
 DIRNAME = Path(__file__).parent
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -175,9 +241,28 @@ def env(ctx):
     """Read filters from env.template and export values from the vault to an .env file.
     """
     with open('env.template', 'r') as f:
-        filters = [FilterSpec(line.strip())
-                   for line in f.readlines()
-                   if line.strip() and not line.strip().startswith('#')]
+        lines = f.readlines()
+
+    # Check for version requirement in first line
+    if lines:
+        version_req = parse_env_template_version(lines[0])
+        if version_req:
+            meets_req, op = check_version_requirement(version_req, __version__)
+            if not meets_req:
+                click.secho(
+                    f"Error: env.template requires seeqret{version_req}, "
+                    f"but you have version {__version__}",
+                    fg='red'
+                )
+                click.echo("\nTo upgrade seeqret, run:")
+                click.secho("    pip install --upgrade seeqret", fg='blue')
+                ctx.exit(1)
+
+    filters = [FilterSpec(line.strip())
+               for line in lines
+               if line.strip()
+               and not line.strip().startswith('#')
+               and not line.strip().startswith('@')]
 
     envserializer = SERIALIZERS['env']()
     curdir = os.getcwd()
