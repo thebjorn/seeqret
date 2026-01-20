@@ -4,7 +4,8 @@
       "Bash(pytest:*)",
       "Bash(c:/srv/venv/seeqret311/Scripts/pytest.exe:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(c:/srv/venv/seeqret311/Scripts/python.exe -m seeqret edit value:*)"
     ]
   }
 }
