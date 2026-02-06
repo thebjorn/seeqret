@@ -273,6 +273,13 @@ def env(ctx):
       # Rename: fetch FOO from local env, write as LOCAL_FOO
       LOCAL_FOO=:local:FOO
     """
+    if not os.path.exists('env.template'):
+        click.secho("Error: No env.template file found in the current directory.", fg='red')
+        click.echo("\nCreate an env.template file to specify which secrets to export.")
+        click.echo("See 'seeqret env --help' for format details.")
+        ctx.exit(1)
+        return
+
     with open('env.template', 'r') as f:
         lines = f.readlines()
 
