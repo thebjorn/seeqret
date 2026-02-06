@@ -74,6 +74,36 @@ def test_parse_env_template_version():
     assert parse_env_template_version(':dev:FOO*') is None
 
 
+def test_env_with_rename():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        with open('env.template', 'w') as f:
+            f.write('LOCAL_FOO=:dev:FOO\n')
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert result.exit_code == 0
+        env_content = open('.env').read()
+        assert 'LOCAL_FOO="BAR"' in env_content
+        assert env_content.strip() == 'LOCAL_FOO="BAR"'
+
+
 def test_env_version_check():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():

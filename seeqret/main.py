@@ -85,6 +85,7 @@ def parse_env_template_version(first_line: str) -> str | None:
         return match.group(1)
     return None
 
+
 DIRNAME = Path(__file__).parent
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -255,6 +256,10 @@ def env(ctx):
       APP:ENV:KEY         Match a specific app, environment, and key
 
     \b
+    Rename syntax (write secret to .env under a different name):
+      OUTPUT_NAME=FILTER  Fetch secret matching FILTER, output as OUTPUT_NAME
+
+    \b
     Glob patterns (* and ?) are supported in all fields.
     Empty fields default to * (match all).
 
@@ -265,6 +270,8 @@ def env(ctx):
       myapp:prod:DB_*
       myapp:prod:SECRET_KEY
       :dev:
+      # Rename: fetch FOO from local env, write as LOCAL_FOO
+      LOCAL_FOO=:local:FOO
     """
     with open('env.template', 'r') as f:
         lines = f.readlines()
@@ -296,11 +303,17 @@ def env(ctx):
             click.echo("Examples: @seeqret>=0.3  @seeqret>0.2.2  @seeqret==1.0")
             ctx.exit(1)
 
-    filters = [FilterSpec(line.strip())
-               for line in lines
-               if line.strip()
-               and not line.strip().startswith('#')
-               and not line.strip().startswith('@')]
+    # Parse filter lines, supporting rename syntax: OUTPUT_NAME=FILTER
+    filters = []
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#') or stripped.startswith('@'):
+            continue
+        if '=' in stripped:
+            output_name, _, filter_string = stripped.partition('=')
+            filters.append((output_name, FilterSpec(filter_string)))
+        else:
+            filters.append((None, FilterSpec(stripped)))
 
     envserializer = SERIALIZERS['env']()
     curdir = os.getcwd()
@@ -310,8 +323,10 @@ def env(ctx):
         errors = 0
         secrets = []
         keys = set()
-        for fspec in filters:
+        for output_name, fspec in filters:
             for secret in storage.fetch_secrets(**fspec.to_filterdict()):
+                if output_name:
+                    secret.key = output_name
                 if secret.key not in keys:
                     secrets.append(secret)
                     keys.add(secret.key)
@@ -407,7 +422,8 @@ def importenv(ctx, filename, app, env, update, dry_run):
         if result:
             key, value = result
             if ':' in key:
-                click.secho(f"Warning: Skipping line {i}, colon not allowed in key: {key}", fg='yellow')
+                click.secho(f"Warning: Skipping line {i}, colon not allowed in key: {key}",
+                            fg='yellow')
                 continue
             parsed.append((key, value))
 
@@ -456,7 +472,8 @@ def importenv(ctx, filename, app, env, update, dry_run):
                 click.secho(f"  Added: {key}", fg='green')
 
         click.echo()
-        click.secho(f"Import complete: {added} added, {updated} updated, {skipped} skipped", fg='green')
+        click.secho(f"Import complete: {added} added, {updated} updated, {skipped} skipped",
+                    fg='green')
 
 
 @cli.command()
