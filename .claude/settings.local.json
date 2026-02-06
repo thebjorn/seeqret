@@ -5,7 +5,10 @@
       "Bash(c:/srv/venv/seeqret311/Scripts/pytest.exe:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(c:/srv/venv/seeqret311/Scripts/python.exe -m seeqret edit value:*)"
+      "Bash(c:/srv/venv/seeqret311/Scripts/python.exe -m seeqret edit value:*)",
+      "Bash(python -m seeqret:*)",
+      "Bash(python -c \"from seeqret.main import cli; cli\\(\\)\" -- env --help)",
+      "Bash(seeqret env --help:*)"
     ]
   }
 }

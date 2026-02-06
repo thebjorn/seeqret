@@ -239,6 +239,32 @@ def serializers():
 @click.pass_context
 def env(ctx):
     """Read filters from env.template and export values from the vault to an .env file.
+
+    The env.template file uses the following format:
+
+    \b
+    Lines:
+      # comment           Comment lines (ignored)
+      @seeqret>=VERSION   Version requirement (e.g. @seeqret>=0.3)
+      FILTER              A filter specifying which secrets to include
+
+    \b
+    Filter format (fields separated by colons):
+      KEY                 Match a specific key (any app/env)
+      APP:ENV             Match all keys for app/environment
+      APP:ENV:KEY         Match a specific app, environment, and key
+
+    \b
+    Glob patterns (* and ?) are supported in all fields.
+    Empty fields default to * (match all).
+
+    \b
+    Examples of env.template:
+      @seeqret>=0.3
+      # Database credentials
+      myapp:prod:DB_*
+      myapp:prod:SECRET_KEY
+      :dev:
     """
     with open('env.template', 'r') as f:
         lines = f.readlines()
