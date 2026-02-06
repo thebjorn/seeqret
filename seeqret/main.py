@@ -197,6 +197,22 @@ def owner():
 
 
 @cli.command()
+def whoami():
+    """Display the current user and their role in the vault.
+    """
+    user = current_user()
+    with seeqret_dir():
+        storage = SqliteStorage()
+        admin = storage.fetch_admin()
+        if admin and admin.username == user:
+            click.echo(f"{user} (owner)")
+        elif storage.fetch_users(username=user):
+            click.echo(f"{user}")
+        else:
+            click.echo(f"{user} (not a registered user of this vault)")
+
+
+@cli.command()
 @click.option('--export', is_flag=True, help='Export the users for import into another vault')
 def users(export):
     """List the users in the vault
