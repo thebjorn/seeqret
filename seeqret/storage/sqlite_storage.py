@@ -108,6 +108,20 @@ class SqliteStorage(Storage):
 
         return self.fetch_users(username=user.username)
 
+    def fetch_user(self, username: str):
+        """Fetch a single user by username.  Returns User or None.
+        """
+        logger.debug('fetch_user: %s', username)
+        with self.connection() as cn:
+            rec = cn.execute("""
+                select username, email, pubkey
+                from users
+                where username = ?
+            """, (username,)).fetchone()
+        if rec is None:
+            return None
+        return User(*rec)
+
     def fetch_users(self, **filters):
         logger.debug('fetch_users: %s', filters)
         sql = ("""

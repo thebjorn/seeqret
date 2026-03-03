@@ -40,10 +40,10 @@ def unknown_user_error(username: str) -> click.ClickException:
 def import_secrets(sender, file, value, serializer):
     storage = SqliteStorage()
     receiver = storage.fetch_admin()
-    users = storage.fetch_users(username=sender)
-    if not users:
+    sender_user = storage.fetch_user(sender)
+    if not sender_user:
         raise unknown_user_error(sender)
-    sender = users[0]
+    sender = sender_user
 
     s = serializer(
         sender=sender,
@@ -87,10 +87,9 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
     if to == 'self':
         receiver = admin
     else:
-        users = storage.fetch_users(username=to)
-        if not users:
+        receiver = storage.fetch_user(to)
+        if not receiver:
             raise unknown_user_error(to)
-        receiver = users[0]
 
     s = serializer(
         sender=admin,

@@ -24,7 +24,8 @@ def add_user(pubkey, username, email):
 
     storage = SqliteStorage()
     from seeqret.models import User
-    users = storage.add_user(User(pubkey=pubkey, username=username, email=email))
+    storage.add_user(User(pubkey=pubkey, username=username, email=email))
 
+    user = storage.fetch_user(username)
     click.secho('User added:', fg='green')
-    click.secho(f'    {users[0]}', fg='green')
+    click.secho(f'    {user}', fg='green')

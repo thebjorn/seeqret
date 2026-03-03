@@ -568,7 +568,10 @@ def introduction():
 
     with seeqret_dir():
         storage = SqliteStorage()
-        self = storage.fetch_users(username=current_user())[0]
+        self = storage.fetch_user(current_user())
+        if not self:
+            click.secho(f"You ({current_user()}) are not a user of this vault.", fg='red')
+            return
         click.echo(f"seeqret add user --username {self.username} --email {self.email} --pubkey {self.pubkey}")  # noqa
 
 

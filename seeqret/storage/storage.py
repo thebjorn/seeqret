@@ -11,6 +11,9 @@ class Storage:
     def add_user(self, user: User):
         raise NotImplementedError
 
+    def fetch_user(self, username: str):
+        raise NotImplementedError   # pragma: no cover
+
     def fetch_users(self, **filters):
         raise NotImplementedError   # pragma: no cover
 
