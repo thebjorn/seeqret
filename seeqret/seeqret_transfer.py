@@ -15,6 +15,7 @@ def unknown_user_error(username: str) -> click.ClickException:
     """Build a ClickException with helpful guidance for an unknown user.
     """
     cmd = lambda s: click.style(s, fg='green')  # noqa: E731
+    cmd_blue = lambda s: click.style(s, fg='blue')  # noqa: E731
     return click.ClickException(
         click.style(f"Unknown user: '{username}'.", fg='bright_red') + "\n" + dedent(
             f"""
@@ -28,7 +29,7 @@ def unknown_user_error(username: str) -> click.ClickException:
 
                 > seeqret introduction
                 Please add me to your vault!
-                {click.style('seeqret add user --username usr --email usr@example.com --pubkey ThkU/1234567890...', fg='blue')}
+                {cmd_blue('seeqret add user --username usr --email usr@.. --pubkey ThkU/1234...')}
 
             and send the command to you (can be pasted into an insecure channel like
             email). When you run the command, your vault will know about the new user
