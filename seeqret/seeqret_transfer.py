@@ -14,27 +14,28 @@ from .storage.sqlite_storage import SqliteStorage
 def unknown_user_error(username: str) -> click.ClickException:
     """Build a ClickException with helpful guidance for an unknown user.
     """
-    cmd = lambda s: click.style(s, fg='green')
+    cmd = lambda s: click.style(s, fg='green')  # noqa: E731
     return click.ClickException(
         click.style(f"Unknown user: '{username}'.", fg='bright_red') + "\n" + dedent(
-        f"""
-        Use 
-          - {cmd('seeqret users')} to list known users.
-          - {cmd('seeqret add user')} to add a new user.
-          - {cmd('seeqret edit user')} to edit an existing user.
-          - {cmd('seeqret rm user')} to remove an existing user.
+            f"""
+            Use
+            - {cmd('seeqret users')} to list known users.
+            - {cmd('seeqret add user')} to add a new user.
+            - {cmd('seeqret edit user')} to edit an existing user.
+            - {cmd('seeqret rm user')} to remove an existing user.
 
-        The other user needs to send you their public key. They must run:
+            The other user needs to send you their public key. They must run:
 
-            > seeqret introduction
-            Please add me to your vault!
-            {click.style('seeqret add user --username usr --email usr@example.com --pubkey ThkU/1234567890...', fg='blue')}
+                > seeqret introduction
+                Please add me to your vault!
+                {click.style('seeqret add user --username usr --email usr@example.com --pubkey ThkU/1234567890...', fg='blue')}
 
-        and send the command to you (can be pasted into an insecure channel like 
-        email). When you run the command, your vault will know about the new user
-        (and their public key).
-        """
-    ))
+            and send the command to you (can be pasted into an insecure channel like
+            email). When you run the command, your vault will know about the new user
+            (and their public key).
+            """
+        )
+    )
 
 
 def import_secrets(sender, file, value, serializer):
