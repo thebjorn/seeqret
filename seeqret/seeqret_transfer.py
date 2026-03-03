@@ -1,5 +1,6 @@
 import os
 import sys
+from textwrap import dedent
 
 import click
 
@@ -10,10 +11,39 @@ from .seeqrypt.nacl_backend import (
 from .storage.sqlite_storage import SqliteStorage
 
 
+def unknown_user_error(username: str) -> click.ClickException:
+    """Build a ClickException with helpful guidance for an unknown user.
+    """
+    cmd = lambda s: click.style(s, fg='green')
+    return click.ClickException(
+        click.style(f"Unknown user: '{username}'.", fg='bright_red') + "\n" + dedent(
+        f"""
+        Use 
+          - {cmd('seeqret users')} to list known users.
+          - {cmd('seeqret add user')} to add a new user.
+          - {cmd('seeqret edit user')} to edit an existing user.
+          - {cmd('seeqret rm user')} to remove an existing user.
+
+        The other user needs to send you their public key. They must run:
+
+            > seeqret introduction
+            Please add me to your vault!
+            {click.style('seeqret add user --username usr --email usr@example.com --pubkey ThkU/1234567890...', fg='blue')}
+
+        and send the command to you (can be pasted into an insecure channel like 
+        email). When you run the command, your vault will know about the new user
+        (and their public key).
+        """
+    ))
+
+
 def import_secrets(sender, file, value, serializer):
     storage = SqliteStorage()
     receiver = storage.fetch_admin()
-    sender = storage.fetch_users(username=sender)[0]
+    users = storage.fetch_users(username=sender)
+    if not users:
+        raise unknown_user_error(sender)
+    sender = users[0]
 
     s = serializer(
         sender=sender,
@@ -57,7 +87,10 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
     if to == 'self':
         receiver = admin
     else:
-        receiver = storage.fetch_users(username=to)[0]
+        users = storage.fetch_users(username=to)
+        if not users:
+            raise unknown_user_error(to)
+        receiver = users[0]
 
     s = serializer(
         sender=admin,
