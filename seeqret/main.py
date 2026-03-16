@@ -231,7 +231,7 @@ def setenv(ctx, filter, dry_run):
 
         for secret in secrets:
             if dry_run:
-                click.echo(f"  setx {secret.key} {secret.value}")
+                click.echo(f'  set "{secret.key}={secret.value}"')
             else:
                 result = subprocess.run(
                     ['setx', secret.key, secret.value],
@@ -252,6 +252,17 @@ def setenv(ctx, filter, dry_run):
                 f"{pluralize(secrets, 'variable', 'variables')}",
                 fg='green'
             )
+            click.secho(
+                "\nNote: setx updates the registry but does not affect the "
+                "current terminal.",
+                fg='yellow'
+            )
+            click.echo(
+                "Start a new terminal for changes to take effect, or "
+                "copy/paste the following\ninto the current terminal:\n"
+            )
+            for secret in secrets:
+                click.echo(f'  set "{secret.key}={secret.value}"')
 
 
 @cli.command()

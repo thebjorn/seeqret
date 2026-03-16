@@ -29,7 +29,7 @@ def test_setenv_dry_run():
         result = runner.invoke(setenv, ['myapp:prod:DB_PASS', '--dry-run'])
         if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
-        assert 'setx DB_PASS secret123' in result.output
+        assert 'set "DB_PASS=secret123"' in result.output
 
 
 def test_setenv_multiple_dry_run():
@@ -53,8 +53,8 @@ def test_setenv_multiple_dry_run():
         result = runner.invoke(setenv, ['myapp:prod:*', '--dry-run'])
         if result.exit_code != 0: print_result(result)
         assert result.exit_code == 0
-        assert 'setx DB_HOST localhost' in result.output
-        assert 'setx DB_PORT 5432' in result.output
+        assert 'set "DB_HOST=localhost"' in result.output
+        assert 'set "DB_PORT=5432"' in result.output
 
 
 def test_setenv_no_secrets():
@@ -133,3 +133,5 @@ def test_setenv_calls_setx():
             )
             assert 'MY_VAR set' in result.output
             assert '1 environment variable' in result.output
+            assert 'new terminal' in result.output
+            assert 'set "MY_VAR=myvalue"' in result.output
