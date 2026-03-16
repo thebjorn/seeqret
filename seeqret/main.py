@@ -187,6 +187,74 @@ def get(ctx, filter):
 
 
 @cli.command()
+@click.pass_context
+@click.argument('filter')
+@click.option('--dry-run', is_flag=True,
+              help='Show what would be set without making changes')
+def setenv(ctx, filter, dry_run):
+    """Set global environment variables from secrets matching FILTER.
+
+    Uses the Windows `setx` command to set persistent user-level
+    environment variables based on the key/value pairs returned
+    by the filter.
+
+    \b
+    Errors if:
+      - No secrets match the filter
+      - Multiple secrets have the same key (duplicates)
+
+    \b
+    Examples:
+        seeqret setenv myapp:prod:DB_PASS
+        seeqret setenv "myapp:prod:*"
+        seeqret setenv "myapp:prod:*" --dry-run
+    """
+    import subprocess
+
+    with seeqret_dir():
+        storage = SqliteStorage()
+        fspec = FilterSpec(filter)
+        secrets = storage.fetch_secrets(**fspec.to_filterdict())
+
+        if not secrets:
+            ctx.fail(f"No secrets found for {filter}")
+
+        # Check for duplicate keys
+        keys = {}
+        for secret in secrets:
+            if secret.key in keys:
+                ctx.fail(
+                    f"Duplicate key: {secret.key} "
+                    f"(found in {keys[secret.key]} and {secret.app}:{secret.env})"
+                )
+            keys[secret.key] = f"{secret.app}:{secret.env}"
+
+        for secret in secrets:
+            if dry_run:
+                click.echo(f"  setx {secret.key} {secret.value}")
+            else:
+                result = subprocess.run(
+                    ['setx', secret.key, secret.value],
+                    capture_output=True, text=True
+                )
+                if result.returncode != 0:
+                    click.secho(
+                        f"Error setting {secret.key}: {result.stderr.strip()}",
+                        fg='red'
+                    )
+                    ctx.exit(1)
+                    return
+                click.secho(f"  {secret.key} set", fg='green')
+
+        if not dry_run:
+            click.secho(
+                f"\nSet {len(secrets)} environment "
+                f"{pluralize(secrets, 'variable', 'variables')}",
+                fg='green'
+            )
+
+
+@cli.command()
 def owner():
     """List the owner of the vault
     """
