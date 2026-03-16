@@ -85,3 +85,6 @@ Tests use Click's `CliRunner` for CLI testing. Test utilities in `tests/clirunne
 - Use type hints for all functions and methods.
 - Docstrings for all public functions/classes using format in STYLEGUIDE.md.
 - STYLEGUIDE.md has more details and overrides PEP8 where necessary.
+
+
+**IMPORTANT** always run `pytest` and `flake8` before committing code.
