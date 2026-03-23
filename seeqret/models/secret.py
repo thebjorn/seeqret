@@ -6,7 +6,9 @@ from ..seeqrypt.nacl_backend import (
     asymetric_decrypt_string,
 )
 from ..seeqrypt.utils import load_symetric_key
+from ..run_utils import get_seeqret_dir
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -66,14 +68,16 @@ class Secret:
 
     @property
     def value(self):
-        cipher = load_symetric_key('seeqret.key')
+        keyfile = os.path.join(get_seeqret_dir(), 'seeqret.key')
+        cipher = load_symetric_key(keyfile)
         # logger.debug('decrypting: %s %s', self._value, type(self._value))
         val = decrypt_string(cipher, self._value).decode('utf-8')
         return cnvt(self.type, val)
 
     @value.setter
     def value(self, value):
-        cipher = load_symetric_key('seeqret.key')
+        keyfile = os.path.join(get_seeqret_dir(), 'seeqret.key')
+        cipher = load_symetric_key(keyfile)
         self._value = encrypt_string(cipher, value.encode('utf-8'))
 
     def encrypt_value(self, sender_private_key, receiver_pubkey):
