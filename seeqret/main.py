@@ -153,14 +153,19 @@ def upgrade():
 
 
 @cli.command()
-@click.option('-f', '--filter', default='*', show_default=True,
+@click.argument('filterspec', default='')
+@click.option('-f', '--filter', default='', show_default=False,
               help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
-def list(filter):
+def list(filterspec, filter):
     """List the contents of the vault
+
+    Optionally provide a FILTERSPEC to filter secrets (e.g. yerbu:prod:).
+    The -f flag is still supported for backward compatibility.
     """
+    effective_filter = filter or filterspec or '*'
     with seeqret_dir():
         storage = SqliteStorage()
-        fspec = FilterSpec(filter)
+        fspec = FilterSpec(effective_filter)
         secrets = storage.fetch_secrets(**fspec.to_filterdict())
         if not secrets:
             click.secho("No matching secrets found.")
