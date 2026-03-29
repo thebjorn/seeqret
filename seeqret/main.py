@@ -15,6 +15,7 @@ from .run_utils import seeqret_dir, is_initialized, current_user
 from .console_utils import as_table, dochelp
 from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
+from .models import Secret
 from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
 from .cli_group_add import key as add_key, text as add_text
@@ -360,6 +361,14 @@ def env(ctx):
       OUTPUT_NAME=FILTER  Fetch secret matching FILTER, output as OUTPUT_NAME
 
     \b
+    Constant value syntax (no vault lookup):
+      NAME=value          Output NAME="value" directly in .env
+
+    \b
+    Note: if the right side of = contains a colon, it is treated as a
+    filter. Otherwise it is treated as a constant value.
+
+    \b
     Glob patterns (* and ?) are supported in all fields.
     Empty fields default to * (match all).
 
@@ -372,6 +381,9 @@ def env(ctx):
       :dev:
       # Rename: fetch FOO from local env, write as LOCAL_FOO
       LOCAL_FOO=:local:FOO
+      # Constant values (no vault lookup)
+      NODE_ENV=production
+      DEBUG=false
     """
     if not os.path.exists('env.template'):
         click.secho("Error: No env.template file found in the current directory.", fg='red')
@@ -410,15 +422,21 @@ def env(ctx):
             click.echo("Examples: @seeqret>=0.3  @seeqret>0.2.2  @seeqret==1.0")
             ctx.exit(1)
 
-    # Parse filter lines, supporting rename syntax: OUTPUT_NAME=FILTER
+    # Parse filter lines, supporting rename and constant syntax
     filters = []
+    constants = []
     for line in lines:
         stripped = line.strip()
         if not stripped or stripped.startswith('#') or stripped.startswith('@'):
             continue
         if '=' in stripped:
-            output_name, _, filter_string = stripped.partition('=')
-            filters.append((output_name, FilterSpec(filter_string)))
+            output_name, _, rhs = stripped.partition('=')
+            if ':' in rhs:
+                # Rename syntax: OUTPUT_NAME=app:env:key
+                filters.append((output_name, FilterSpec(rhs)))
+            else:
+                # Constant value: NAME=value
+                constants.append((output_name, rhs))
         else:
             filters.append((None, FilterSpec(stripped)))
 
@@ -440,6 +458,18 @@ def env(ctx):
                 else:
                     click.secho(f"Duplicate key: {secret.key}", fg='red')
                     errors += 1
+        # Add constant values
+        for name, value in constants:
+            if name not in keys:
+                secrets.append(Secret(
+                    app='*', env='*', key=name,
+                    plaintext_value=value
+                ))
+                keys.add(name)
+            else:
+                click.secho(f"Duplicate key: {name}", fg='red')
+                errors += 1
+
         if errors:
             click.secho(f"\nFound {errors} duplicate keys (not creating .env file)", bg='red', fg='bright_yellow')  # noqa
             return

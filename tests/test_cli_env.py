@@ -146,3 +146,71 @@ def test_env_version_check():
         assert 'Invalid directive' in result.output
         assert '@secret>=0.3' in result.output
         assert 'Expected format: @seeqret>=VERSION' in result.output
+
+
+def test_env_with_constant():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        # Constant only
+        with open('env.template', 'w') as f:
+            f.write('NODE_ENV=production\n')
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert result.exit_code == 0
+        env_content = open('.env').read()
+        assert 'NODE_ENV="production"' in env_content
+
+        # Constant mixed with vault secrets
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        with open('env.template', 'w') as f:
+            f.write(':dev:FOO\n')
+            f.write('DEBUG=false\n')
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert result.exit_code == 0
+        env_content = open('.env').read()
+        assert 'FOO="BAR"' in env_content
+        assert 'DEBUG="false"' in env_content
+
+
+def test_env_constant_duplicate():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        assert result.exit_code == 0
+
+        # Constant with same name as vault secret should be duplicate
+        with open('env.template', 'w') as f:
+            f.write(':dev:FOO\n')
+            f.write('FOO=constant\n')
+        result = runner.invoke(env)
+        assert 'Duplicate key: FOO' in result.output
