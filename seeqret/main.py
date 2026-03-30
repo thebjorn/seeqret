@@ -436,6 +436,9 @@ def env(ctx):
                 filters.append((output_name, FilterSpec(rhs)))
             else:
                 # Constant value: NAME=value
+                # Strip surrounding quotes if present (the serializer adds its own)
+                if len(rhs) >= 2 and rhs[0] == rhs[-1] and rhs[0] in ('"', "'"):
+                    rhs = rhs[1:-1]
                 constants.append((output_name, rhs))
         else:
             filters.append((None, FilterSpec(stripped)))

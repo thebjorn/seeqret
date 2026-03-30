@@ -190,6 +190,31 @@ def test_env_with_constant():
         assert 'DEBUG="false"' in env_content
 
 
+def test_env_with_quoted_constant():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        # Quoted constant should not get double-quoted
+        with open('env.template', 'w') as f:
+            f.write('INGEST_API_TOKEN="DEBUG"\n')
+            f.write("SINGLE_QUOTED='hello'\n")
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert result.exit_code == 0
+        env_content = open('.env').read()
+        assert 'INGEST_API_TOKEN="DEBUG"' in env_content
+        assert '""DEBUG""' not in env_content
+        assert "SINGLE_QUOTED=\"hello\"" in env_content
+
+
 def test_env_constant_duplicate():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
