@@ -93,6 +93,46 @@ class SqliteStorage(Storage):
             logger.debug('Result: %s', res)
             return res
 
+    # ---- User helpers ------------------------------------------------
+
+    _USER_COLS_V3 = (
+        "username, email, pubkey, "
+        "slack_handle, slack_key_fingerprint, slack_verified_at"
+    )
+    _USER_COLS_V2 = "username, email, pubkey"
+
+    @staticmethod
+    def _user_from_row(rec):
+        """Hydrate a User from a row that may or may not include the
+        slack_* columns (they live on migration v3+).
+        """
+        if len(rec) == 3:
+            return User(*rec)
+        return User(
+            rec[0], rec[1], rec[2],
+            slack_handle=rec[3],
+            slack_key_fingerprint=rec[4],
+            slack_verified_at=rec[5],
+        )
+
+    def _has_slack_columns(self, cn) -> bool:
+        """Cached check for migration v3 columns. Used so the storage
+        layer stays backward-compatible on vaults that have not yet run
+        `seeqret upgrade` -- otherwise every CLI command would crash on
+        an unavoidable validate_current_user() call.
+        """
+        if getattr(self, '_slack_cols_present', None) is None:
+            row = cn.execute(
+                "select count(*) from pragma_table_info('users')"
+                " where name='slack_handle'"
+            ).fetchone()
+            self._slack_cols_present = bool(row and row[0])
+        return self._slack_cols_present
+
+    def _user_cols(self, cn) -> str:
+        return self._USER_COLS_V3 if self._has_slack_columns(cn) \
+            else self._USER_COLS_V2
+
     def add_user(self, user: User):
         with self.connection() as cn:
             c = cn.cursor()
@@ -113,23 +153,102 @@ class SqliteStorage(Storage):
         """
         logger.debug('fetch_user: %s', username)
         with self.connection() as cn:
-            rec = cn.execute("""
-                select username, email, pubkey
+            cols = self._user_cols(cn)
+            rec = cn.execute(f"""
+                select {cols}
                 from users
                 where username = ?
             """, (username,)).fetchone()
         if rec is None:
             return None
-        return User(*rec)
+        return self._user_from_row(rec)
 
     def fetch_users(self, **filters):
         logger.debug('fetch_users: %s', filters)
-        sql = ("""
-            select username, email, pubkey
+        with self.connection() as cn:
+            cols = self._user_cols(cn)
+        sql = (f"""
+            select {cols}
             from users
         """, " order by username ")
-        return [User(*rec)
+        return [self._user_from_row(rec)
                 for rec in self.execute_sql(sql, **filters)]
+
+    def update_user_slack(self, username: str,
+                          slack_handle=None,
+                          slack_key_fingerprint=None,
+                          slack_verified_at=None):
+        """Persist the Slack identity binding on a user row. All three
+        slack_* fields are written together so the binding stays
+        internally consistent.
+        """
+        with self.connection() as cn:
+            cn.execute("""
+                update users
+                set slack_handle = ?,
+                    slack_key_fingerprint = ?,
+                    slack_verified_at = ?
+                where username = ?
+            """, (
+                slack_handle,
+                slack_key_fingerprint,
+                slack_verified_at,
+                username,
+            ))
+            cn.commit()
+
+    # ---- Encrypted key-value store ----------------------------------
+
+    def kv_get(self, key: str) -> bytes | None:
+        """Fetch a raw encrypted blob from the kv table. Callers are
+        responsible for Fernet-unwrapping the returned value.
+        """
+        with self.connection() as cn:
+            rec = cn.execute(
+                "select encrypted_value from kv where key = ?",
+                (key,),
+            ).fetchone()
+        if rec is None:
+            return None
+        return bytes(rec[0]) if rec[0] is not None else None
+
+    def kv_set(self, key: str, encrypted_value: bytes) -> None:
+        """Upsert a kv row. The value must already be Fernet-encrypted.
+        """
+        import time
+        now = int(time.time())
+        with self.connection() as cn:
+            cn.execute("""
+                insert into kv (key, encrypted_value, updated_at)
+                values (?, ?, ?)
+                on conflict(key) do update set
+                    encrypted_value = excluded.encrypted_value,
+                    updated_at = excluded.updated_at
+            """, (key, encrypted_value, now))
+            cn.commit()
+
+    def kv_delete(self, key: str) -> None:
+        with self.connection() as cn:
+            cn.execute("delete from kv where key = ?", (key,))
+            cn.commit()
+
+    def kv_delete_prefix(self, prefix: str) -> None:
+        """Delete every kv row whose key starts with the given prefix.
+        Used by `seeqret slack logout` to wipe all slack.* entries.
+        """
+        with self.connection() as cn:
+            cn.execute("delete from kv where key like ?", (prefix + '%',))
+            cn.commit()
+
+    def kv_list_prefix(self, prefix: str):
+        """List (key, updated_at) pairs with a given prefix.
+        """
+        with self.connection() as cn:
+            return cn.execute(
+                "select key, updated_at from kv"
+                " where key like ? order by key",
+                (prefix + '%',),
+            ).fetchall()
 
     def update_secret(self, secret: Secret):
         with self.connection() as cn:
@@ -175,11 +294,12 @@ class SqliteStorage(Storage):
     def fetch_admin(self):
         logger.debug('fetch_admin: %s', self)
         with self.connection() as cn:
-            admin_rec = cn.execute("""
-                select username, email, pubkey
+            cols = self._user_cols(cn)
+            admin_rec = cn.execute(f"""
+                select {cols}
                 from users
                 where id = 1
             """).fetchone()
         if admin_rec is None:
             return None
-        return User(*admin_rec)
+        return self._user_from_row(admin_rec)

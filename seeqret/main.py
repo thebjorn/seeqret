@@ -20,6 +20,7 @@ from .serializers.serializer import SERIALIZERS
 from .cli_group_rm import key as rm_key
 from .cli_group_add import key as add_key, text as add_text
 from .cli_group_server import init as server_init
+from .cli_group_slack import slack as slack_group, send as send_cmd, receive as receive_cmd
 import logging
 
 
@@ -878,3 +879,10 @@ def user(ctx, username, email, pubkey):
         # click.secho(f'Fetching public key: {url}', fg='blue')
         # pubkey = seeqret_add.fetch_pubkey_from_url(url)
         add_user(pubkey, username, email)
+
+
+# ---- Slack exchange transport -----------------------------------------
+
+cli.add_command(slack_group)
+cli.add_command(send_cmd)
+cli.add_command(receive_cmd)

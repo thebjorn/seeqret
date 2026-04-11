@@ -22,6 +22,7 @@ setuptools.setup(
         'Click',
         'rich',
         'requests',
+        'slack_sdk',
         "pywin32  ; sys_platform == 'win32'"
     ],
     classifiers=[
