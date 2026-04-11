@@ -1,15 +1,17 @@
 """OAuth v2 PKCE loopback flow for ``seeqret slack login``.
 
-Flow:
-  1. Generate a PKCE code verifier + challenge.
-  2. Bind a one-shot http server on 127.0.0.1:<ephemeral>.
-  3. Open the user's browser at slack.com/oauth/v2/authorize with
-     a redirect_uri pointing at our loopback port.
-  4. Wait for Slack to redirect back with ?code=...
-  5. Exchange the code + verifier for a user token via oauth.v2.access.
-  6. Shut down the server and return the token.
+   Flow:
+     1. Generate a PKCE code verifier and challenge.
+     2. Bind a one-shot http server on ``127.0.0.1:<ephemeral>``.
+     3. Open the user's browser at ``slack.com/oauth/v2/authorize``
+        with a redirect_uri pointing at our loopback port.
+     4. Wait for Slack to redirect back with ``?code=...``.
+     5. Exchange the code and verifier for a user token via
+        ``oauth.v2.access``.
+     6. Shut down the server and return the token.
 
-The Client ID is baked into seeqret (see SLACK_CLIENT_ID below).
+   The Client ID is baked into seeqret (see ``SLACK_CLIENT_ID``
+   below).
 """
 
 from __future__ import annotations
@@ -26,9 +28,9 @@ from urllib.parse import urlencode, urlparse, parse_qs
 from slack_sdk import WebClient
 
 
-# SLACK_CLIENT_ID is a placeholder. The real maintainer should set the
-# env var or replace the default string before releasing a build with
-# the Client ID of the published seeqret Slack app.
+# SLACK_CLIENT_ID is a placeholder. The real maintainer should set
+# the env var or replace the default string before releasing a build
+# with the Client ID of the published seeqret Slack app.
 SLACK_CLIENT_ID = os.environ.get(
     'SEEQRET_SLACK_CLIENT_ID',
     '0000000000.0000000000000',
@@ -48,11 +50,15 @@ SLACK_USER_SCOPES = ','.join([
 
 
 def _url_safe_random(n_bytes: int) -> str:
+    """Return a URL-safe base64 string of *n_bytes* random bytes.
+    """
     return base64.urlsafe_b64encode(secrets.token_bytes(n_bytes))\
         .rstrip(b'=').decode('ascii')
 
 
 def _pkce_pair() -> tuple[str, str]:
+    """Return a fresh ``(verifier, challenge)`` pair for PKCE S256.
+    """
     verifier = _url_safe_random(32)
     challenge = base64.urlsafe_b64encode(
         hashlib.sha256(verifier.encode('ascii')).digest()
@@ -61,6 +67,13 @@ def _pkce_pair() -> tuple[str, str]:
 
 
 class _CallbackServer(http.server.HTTPServer):
+    """One-shot loopback HTTP server for the OAuth redirect.
+
+       Stores the received ``code`` (or ``error``) on the instance
+       and signals ``_done`` so the main thread can wake up and
+       exchange the code for a token.
+    """
+
     allow_reuse_address = False
 
     def __init__(self, address, expected_state):
@@ -71,15 +84,25 @@ class _CallbackServer(http.server.HTTPServer):
         self._done = threading.Event()
 
     def wait(self, timeout: float) -> None:
+        """Block until the callback has been handled or *timeout*.
+        """
         self._done.wait(timeout)
 
 
 class _CallbackHandler(http.server.BaseHTTPRequestHandler):
+    """HTTP handler for the one-shot ``/callback`` endpoint.
+    """
+
     def log_message(self, format, *args):
-        # Stay quiet; the user is watching the CLI, not this server.
+        """Silence the default request log.
+
+           The user is watching the CLI, not this server.
+        """
         return
 
     def do_GET(self):
+        """Handle the single ``GET /callback?...`` redirect.
+        """
         server: _CallbackServer = self.server  # type: ignore
         parsed = urlparse(self.path)
         if parsed.path != '/callback':
@@ -112,6 +135,8 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
         server._done.set()
 
     def _html(self, status: int, body: str) -> None:
+        """Write an HTML response of *status* with *body*.
+        """
         self.send_response(status)
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.end_headers()
@@ -124,7 +149,12 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
 def run_oauth_flow(open_browser=None, timeout_seconds: int = 180) -> dict:
     """Run the PKCE loopback flow to completion.
 
-    Returns ``{access_token, team_id, team_name, user_id}``.
+       Returns a dict with ``access_token``, ``team_id``,
+       ``team_name`` and ``user_id``. Raises ``RuntimeError`` if the
+       browser handshake fails, times out, or Slack rejects the code.
+
+       *open_browser* is an optional callable that receives the
+       authorize URL; defaults to ``webbrowser.open``.
     """
     verifier, challenge = _pkce_pair()
     state = _url_safe_random(24)
@@ -169,7 +199,9 @@ def run_oauth_flow(open_browser=None, timeout_seconds: int = 180) -> dict:
             code_verifier=verifier,
         )
         if not r.get('ok'):
-            raise RuntimeError(f'slack oauth.v2.access failed: {r.get("error")}')
+            raise RuntimeError(
+                f'slack oauth.v2.access failed: {r.get("error")}'
+            )
 
         authed_user = r.get('authed_user') or {}
         access_token = authed_user.get('access_token') or r.get('access_token')

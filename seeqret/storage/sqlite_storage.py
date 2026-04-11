@@ -103,8 +103,10 @@ class SqliteStorage(Storage):
 
     @staticmethod
     def _user_from_row(rec):
-        """Hydrate a User from a row that may or may not include the
-        slack_* columns (they live on migration v3+).
+        """Hydrate a User from a row of either column layout.
+
+           Rows may or may not include the ``slack_*`` columns; they
+           are only present on migration v3 and later.
         """
         if len(rec) == 3:
             return User(*rec)
@@ -116,10 +118,13 @@ class SqliteStorage(Storage):
         )
 
     def _has_slack_columns(self, cn) -> bool:
-        """Cached check for migration v3 columns. Used so the storage
-        layer stays backward-compatible on vaults that have not yet run
-        `seeqret upgrade` -- otherwise every CLI command would crash on
-        an unavoidable validate_current_user() call.
+        """Cached check for the presence of migration v3 columns.
+
+           Used so the storage layer stays backward-compatible on
+           vaults that have not yet run ``seeqret upgrade`` --
+           otherwise every CLI command would crash on an unavoidable
+           ``validate_current_user()`` call before the operator ever
+           gets a chance to upgrade.
         """
         if getattr(self, '_slack_cols_present', None) is None:
             row = cn.execute(
@@ -130,6 +135,8 @@ class SqliteStorage(Storage):
         return self._slack_cols_present
 
     def _user_cols(self, cn) -> str:
+        """Return the SELECT column list appropriate for the schema.
+        """
         return self._USER_COLS_V3 if self._has_slack_columns(cn) \
             else self._USER_COLS_V2
 
@@ -149,7 +156,10 @@ class SqliteStorage(Storage):
         return self.fetch_users(username=user.username)
 
     def fetch_user(self, username: str):
-        """Fetch a single user by username.  Returns User or None.
+        """Fetch a single user by username.
+
+           Returns a ``User`` instance or ``None`` if no user with
+           that username exists.
         """
         logger.debug('fetch_user: %s', username)
         with self.connection() as cn:
@@ -178,9 +188,11 @@ class SqliteStorage(Storage):
                           slack_handle=None,
                           slack_key_fingerprint=None,
                           slack_verified_at=None):
-        """Persist the Slack identity binding on a user row. All three
-        slack_* fields are written together so the binding stays
-        internally consistent.
+        """Persist the Slack identity binding on a user row.
+
+           All three ``slack_*`` fields are written together so the
+           binding stays internally consistent: a stored handle
+           always matches its verified fingerprint and timestamp.
         """
         with self.connection() as cn:
             cn.execute("""
@@ -200,8 +212,10 @@ class SqliteStorage(Storage):
     # ---- Encrypted key-value store ----------------------------------
 
     def kv_get(self, key: str) -> bytes | None:
-        """Fetch a raw encrypted blob from the kv table. Callers are
-        responsible for Fernet-unwrapping the returned value.
+        """Fetch a raw encrypted blob from the kv table.
+
+           Callers are responsible for Fernet-unwrapping the
+           returned value. Returns ``None`` when no row exists.
         """
         with self.connection() as cn:
             rec = cn.execute(
@@ -213,7 +227,10 @@ class SqliteStorage(Storage):
         return bytes(rec[0]) if rec[0] is not None else None
 
     def kv_set(self, key: str, encrypted_value: bytes) -> None:
-        """Upsert a kv row. The value must already be Fernet-encrypted.
+        """Upsert a kv row.
+
+           The value must already be Fernet-encrypted; this method
+           does not touch the vault's symmetric key.
         """
         import time
         now = int(time.time())
@@ -228,20 +245,24 @@ class SqliteStorage(Storage):
             cn.commit()
 
     def kv_delete(self, key: str) -> None:
+        """Delete a single kv row by key.
+        """
         with self.connection() as cn:
             cn.execute("delete from kv where key = ?", (key,))
             cn.commit()
 
     def kv_delete_prefix(self, prefix: str) -> None:
-        """Delete every kv row whose key starts with the given prefix.
-        Used by `seeqret slack logout` to wipe all slack.* entries.
+        """Delete every kv row whose key starts with *prefix*.
+
+           Used by ``seeqret slack logout`` to wipe all ``slack.*``
+           entries in a single call.
         """
         with self.connection() as cn:
             cn.execute("delete from kv where key like ?", (prefix + '%',))
             cn.commit()
 
     def kv_list_prefix(self, prefix: str):
-        """List (key, updated_at) pairs with a given prefix.
+        """List ``(key, updated_at)`` pairs with a given prefix.
         """
         with self.connection() as cn:
             return cn.execute(

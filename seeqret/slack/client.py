@@ -1,24 +1,22 @@
-"""Thin wrapper around slack_sdk.WebClient.
+"""Thin wrapper around ``slack_sdk.WebClient``.
 
-Everything seeqret needs from Slack fits in ~10 methods. The
-``WebClient`` already handles 429 backoff (``RateLimitedError``), so
-this wrapper is mostly a vocabulary layer:
+   Everything seeqret needs from Slack fits in roughly ten methods.
+   The ``WebClient`` already handles 429 backoff via its built-in
+   retry policy, so this wrapper is mostly a vocabulary layer:
 
-  - keeps all Slack calls in one place so auditing is easy
-  - normalizes return shapes to plain dicts
-  - hides the difference between files_upload_v2, files_delete,
-    etc. behind one ``SlackClient`` surface
-  - takes the token by injection (no globals) so the caller can
-    pull it from the vault kv on every command invocation
+     - keeps all Slack calls in one place so auditing is easy
+     - normalizes return shapes to plain dicts
+     - hides the difference between ``files_upload_v2``,
+       ``files_delete`` and friends behind one ``SlackClient`` surface
+     - takes the token by injection (no globals) so the caller can
+       pull it from the vault kv on every command invocation
 
-Concern #8 (rate limits / availability): the WebClient's default
-retry policy does exponential backoff. Our fail-closed behavior
-lives in transport.py.
+   Concern #8 (rate limits / availability): the WebClient's default
+   retry policy does exponential backoff. Our fail-closed behavior
+   lives in ``transport.py``.
 """
 
 from __future__ import annotations
-
-from typing import Iterable
 
 import requests
 from slack_sdk import WebClient
@@ -26,6 +24,13 @@ from slack_sdk.errors import SlackApiError
 
 
 class SlackClient:
+    """Facade over ``slack_sdk.WebClient``.
+
+       All methods take the Slack User OAuth token through the
+       constructor and raise ``SlackApiError`` (or ``RuntimeError``
+       for transport-level failures) on errors.
+    """
+
     def __init__(self, token: str):
         if not token:
             raise ValueError('SlackClient: missing OAuth token')
@@ -35,6 +40,11 @@ class SlackClient:
     # ---- auth / workspace ----
 
     def auth_test(self) -> dict:
+        """Return a normalized ``auth.test`` response.
+
+           Keys: ``ok``, ``team_id``, ``team_name``, ``user_id``,
+           ``user_name``, ``url``.
+        """
         r = self.web.auth_test()
         return {
             'ok': r['ok'],
@@ -46,6 +56,10 @@ class SlackClient:
         }
 
     def list_private_channels(self) -> list[dict]:
+        """List private channels the authenticated user belongs to.
+
+           Each entry is ``{'id': str, 'name': str}``.
+        """
         r = self.web.conversations_list(
             types='private_channel',
             exclude_archived=True,
@@ -58,6 +72,11 @@ class SlackClient:
         ]
 
     def lookup_user_by_email(self, email: str) -> dict | None:
+        """Resolve a Slack user by email.
+
+           Returns ``{'id', 'name', 'real_name'}`` or ``None`` when no
+           user with that email exists in the workspace.
+        """
         try:
             r = self.web.users_lookupByEmail(email=email)
         except SlackApiError as e:
@@ -74,6 +93,8 @@ class SlackClient:
         }
 
     def users_info(self, user_id: str) -> dict:
+        """Return the raw ``users.info`` dict for a user_id.
+        """
         r = self.web.users_info(user=user_id)
         return dict(r['user'])
 
@@ -82,7 +103,10 @@ class SlackClient:
     def upload_blob(self, *, channel_id: str, filename: str,
                     content_bytes: bytes) -> dict:
         """Upload a binary blob as a file-share message to a channel.
-        Returns ``{file_id, channel_id, ts}``.
+
+           Returns ``{'file_id', 'channel_id', 'ts'}`` where ``ts`` is
+           the timestamp of the file-share parent message so callers
+           can thread a reply on it.
         """
         r = self.web.files_upload_v2(
             channel=channel_id,
@@ -114,6 +138,11 @@ class SlackClient:
         }
 
     def file_info(self, file_id: str) -> dict:
+        """Fetch ``files.info`` metadata for *file_id*.
+
+           Returns a dict with ``id``, ``url_private``, ``size`` and
+           ``name``.
+        """
         r = self.web.files_info(file=file_id)
         f = r.get('file')
         if f is None:
@@ -128,10 +157,10 @@ class SlackClient:
     def download_file(self, url_private: str) -> bytes:
         """Authenticated download of a Slack private file.
 
-        slack_sdk does not wrap this: Slack expects an
-        ``Authorization: Bearer <token>`` header against
-        ``url_private``. Requests is already a dependency of the
-        project.
+           ``slack_sdk`` does not wrap this: Slack expects an
+           ``Authorization: Bearer <token>`` header against
+           ``url_private``. ``requests`` is already a dependency of
+           the project, so we use it directly.
         """
         res = requests.get(
             url_private,
@@ -146,35 +175,48 @@ class SlackClient:
         return res.content
 
     def delete_file(self, file_id: str) -> None:
+        """Delete a Slack file by id.
+        """
         self.web.files_delete(file=file_id)
 
     # ---- messaging ----
 
     def post_thread_reply(self, *, channel_id: str, thread_ts: str,
                           text: str) -> dict:
+        """Post a text message as a reply on an existing thread.
+
+           Returns ``{'ts': <reply_ts>}``.
+        """
         r = self.web.chat_postMessage(
             channel=channel_id, thread_ts=thread_ts, text=text,
         )
         return {'ts': r['ts']}
 
     def delete_message(self, *, channel_id: str, ts: str) -> None:
+        """Delete a message from a channel.
+        """
         self.web.chat_delete(channel=channel_id, ts=ts)
 
     def conversations_history(self, *, channel_id: str,
                               oldest_ts: str = '0',
                               limit: int = 100) -> list[dict]:
+        """Walk channel history forward from *oldest_ts*.
+
+           Slack returns newest-first; this wrapper reverses the list
+           so callers can process messages in chronological order.
+        """
         r = self.web.conversations_history(
             channel=channel_id,
             oldest=oldest_ts,
             inclusive=False,
             limit=limit,
         )
-        # Slack returns newest-first; reverse so callers process in
-        # chronological order.
         return list(reversed(r.get('messages', [])))
 
     def conversations_replies(self, *, channel_id: str,
                               ts: str) -> list[dict]:
+        """Return the full thread for a parent message *ts*.
+        """
         r = self.web.conversations_replies(channel=channel_id, ts=ts)
         return list(r.get('messages', []))
 
@@ -183,10 +225,10 @@ class SlackClient:
     def list_connected_apps(self) -> list[dict]:
         """Enumerate workspace connected apps for the doctor baseline.
 
-        Slack's API for this varies by workspace tier. We try a couple
-        of endpoints and return whatever we get. ``slack doctor``
-        hashes the result; absence is treated as a warning rather than
-        a silent pass.
+           Slack's API for this varies by workspace tier. We try a
+           couple of endpoints and return whatever we get.
+           ``slack doctor`` hashes the result; absence is treated as a
+           warning rather than a silent pass.
         """
         try:
             # Not available on every workspace.

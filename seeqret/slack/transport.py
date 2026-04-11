@@ -1,19 +1,20 @@
 """Slack transport for NaCl-encrypted export blobs.
 
-This module is purely about moving bytes across Slack. It does NOT
-encrypt or decrypt -- that is still the job of the existing export
-serializer. The transport only:
+   This module is purely about moving bytes across Slack. It does
+   NOT encrypt or decrypt -- that is still the job of the existing
+   export serializer. The transport only:
 
-  send_blob         -- pads ciphertext, uploads as a file, posts a
-                       recipient mention in the file's thread
-  poll_inbox        -- generator walking history forward, yielding
-                       dicts for messages that mention self_user_id
-  delete_thread     -- files.delete + chat.delete after a successful
-                       import, honoring forward secrecy
+     send_blob      -- pads ciphertext, uploads as a file, and posts
+                       a recipient mention in the file's thread
+     poll_inbox     -- generator walking history forward, yielding
+                       dicts for messages that mention
+                       ``self_user_id``
+     delete_thread  -- ``files.delete`` + ``chat.delete`` after a
+                       successful import, honoring forward secrecy
 
-Fail-closed semantics (security-concerns.md #6, #8): on any Slack
-error the caller must NOT advance ``last_seen_ts`` and must exit
-non-zero. This module raises; ``receive`` catches and reports.
+   Fail-closed semantics (security-concerns.md #6, #8): on any Slack
+   error the caller must NOT advance ``last_seen_ts`` and must exit
+   non-zero. This module raises; ``receive`` catches and reports.
 """
 
 from __future__ import annotations
@@ -30,7 +31,12 @@ def send_blob(*, client: SlackClient, channel_id: str,
               ciphertext: bytes | str) -> dict:
     """Upload a ciphertext blob and post a recipient mention.
 
-    Returns ``{file_id, file_ts, reply_ts}``.
+       Pads *ciphertext* to the standard bucket size, uploads it
+       under an opaque ``jsenc-<uuid>.bin`` filename, and posts a
+       single-mention thread reply so only the intended recipient
+       will pick it up on ``poll_inbox``.
+
+       Returns ``{'file_id', 'file_ts', 'reply_ts'}``.
     """
     if isinstance(ciphertext, str):
         payload = ciphertext.encode('utf-8')
@@ -79,11 +85,12 @@ def poll_inbox(*, client: SlackClient, channel_id: str,
                oldest_ts: str = '0') -> Iterator[dict]:
     """Yield each inbound blob addressed to me since *oldest_ts*.
 
-    A message is "addressed to me" when its thread contains a reply
-    whose text is exactly ``<@SELF_USER_ID>``.
+       A message is "addressed to me" when its thread contains a
+       reply whose text is exactly ``<@SELF_USER_ID>``.
 
-    Each yielded dict has: ``file_ts``, ``reply_ts``, ``file_id``,
-    ``sender_user_id``, ``ciphertext`` (bytes, already unpadded).
+       Each yielded dict has keys ``file_ts``, ``reply_ts``,
+       ``file_id``, ``sender_user_id`` and ``ciphertext`` (bytes,
+       already unpadded).
     """
     messages = client.conversations_history(
         channel_id=channel_id,
@@ -132,9 +139,11 @@ def poll_inbox(*, client: SlackClient, channel_id: str,
 
 def delete_thread(*, client: SlackClient, channel_id: str,
                   file_id: str, reply_ts: str) -> None:
-    """Delete both the uploaded file and the thread mention after a
-    successful import. Failure is fatal: the caller must NOT advance
-    ``last_seen_ts`` or the same blob will be re-imported forever.
+    """Delete both the uploaded file and the thread mention.
+
+       Called after a successful local import. Failure is fatal:
+       the caller must NOT advance ``last_seen_ts`` if either delete
+       raises, or the same blob will be re-imported forever.
     """
     client.delete_message(channel_id=channel_id, ts=reply_ts)
     client.delete_file(file_id)

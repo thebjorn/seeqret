@@ -1,14 +1,15 @@
 """Slack handle to NaCl public key binding.
 
-Implements security-concerns.md #4: a Slack handle is NEVER trusted
-as a source of public-key material. Before seeqret will send
-ciphertext to ``@bob`` via Slack, the operator must have run
-``seeqret slack link bob`` and typed back the 5-character fingerprint
-of bob's public key (out-of-band verification).
+   Implements security-concerns.md #4: a Slack handle is NEVER trusted
+   as a source of public-key material. Before seeqret will send
+   ciphertext to ``@bob`` via Slack, the operator must have run
+   ``seeqret slack link bob`` and typed back the 5-character
+   fingerprint of bob's public key (out-of-band verification).
 
-The fingerprint is cached in the users table. Any later mismatch --
-for example if the users row is rewritten by an attacker or the key
-is rotated without a fresh ``slack link`` -- causes send() to refuse.
+   The fingerprint is cached in the users table. Any later mismatch --
+   for example if the users row is rewritten by an attacker or the key
+   is rotated without a fresh ``slack link`` -- causes ``send`` to
+   refuse.
 """
 
 import time
@@ -18,10 +19,11 @@ from ..seeqrypt.nacl_backend import fingerprint as nacl_fingerprint
 
 
 def compute_fingerprint(user: User) -> str:
-    """5-character fingerprint of a user's public key.
+    """Return the 5-character fingerprint of a user's public key.
 
-    The hash is taken over the raw 32-byte public key bytes (not the
-    base64 string), which matches jseeqret's compute_fingerprint.
+       The hash is taken over the raw 32-byte public key bytes (not
+       the base64 string), which matches jseeqret's
+       ``compute_fingerprint``.
     """
     return nacl_fingerprint(bytes(user.public_key))
 
@@ -29,9 +31,9 @@ def compute_fingerprint(user: User) -> str:
 def bind_slack_handle(storage, username: str, slack_handle: str):
     """Record a slack handle binding after out-of-band confirmation.
 
-    Callers are responsible for displaying the fingerprint and
-    collecting the confirmation. This function only persists the
-    result, so it is safe to unit-test in isolation.
+       Callers are responsible for displaying the fingerprint and
+       collecting the confirmation. This function only persists the
+       result, so it is safe to unit-test in isolation.
     """
     user = storage.fetch_user(username)
     if user is None:
@@ -49,11 +51,11 @@ def bind_slack_handle(storage, username: str, slack_handle: str):
 
 
 def require_verified_binding(storage, username: str):
-    """Return the (user, slack_handle) pair, or raise if the binding
-    is missing or stale.
+    """Return a ``(user, slack_handle)`` pair for a verified binding.
 
-    Used by ``send`` to refuse to push ciphertext via Slack if the
-    binding has drifted.
+       Raises ValueError if the binding is missing or stale. Used by
+       ``send`` to refuse to push ciphertext via Slack if the binding
+       has drifted since the last ``slack link``.
     """
     user = storage.fetch_user(username)
     if user is None:
@@ -83,11 +85,12 @@ def require_verified_binding(storage, username: str):
 
 
 def find_user_by_slack_handle(storage, slack_handle: str):
-    """Return the local user with the given slack_handle, or None.
+    """Return the local user with the given *slack_handle*, or None.
 
-    Used by ``receive`` to resolve an inbound sender. Slack identity
-    alone does not authenticate the ciphertext -- NaCl Box does -- but
-    we still need to know *which* local pubkey to decrypt against.
+       Used by ``receive`` to resolve an inbound sender. Slack
+       identity alone does not authenticate the ciphertext -- NaCl Box
+       does -- but we still need to know *which* local pubkey to
+       decrypt against.
     """
     for user in storage.fetch_users():
         if user.slack_handle == slack_handle:

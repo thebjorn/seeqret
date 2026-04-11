@@ -1,12 +1,12 @@
 """Fernet-wrapped Slack configuration store.
 
-All Slack tokens and channel metadata live in the vault's `kv` table
-(migration v003). Values are JSON-serialized, Fernet-encrypted with
-the vault's symmetric key, and written as BLOB.
+   All Slack tokens and channel metadata live in the vault's ``kv``
+   table (migration v003). Values are JSON-serialized, Fernet-encrypted
+   with the vault's symmetric key, and written as BLOB.
 
-This implements security-concerns.md #3: the Slack user token gets
-the same at-rest protection as every other secret in the vault and
-never touches disk in plaintext.
+   This implements security-concerns.md #3: the Slack user token gets
+   the same at-rest protection as every other secret in the vault and
+   never touches disk in plaintext.
 """
 
 import json
@@ -35,15 +35,18 @@ SLACK_KEYS = {
 
 
 def _fernet() -> Fernet:
-    """Load the vault's Fernet key. Raises FileNotFoundError if the
-    vault has not been initialized.
+    """Load the vault's Fernet symmetric key.
+
+       Raises FileNotFoundError if the vault has not been initialized.
     """
     vault = get_seeqret_dir()
     return load_symetric_key(os.path.join(vault, 'seeqret.key'))
 
 
 def slack_config_get(storage, key: str):
-    """Fetch and decrypt a Slack config value. Returns None if absent.
+    """Fetch and decrypt a Slack config value.
+
+       Returns None if no row with *key* exists.
     """
     blob = storage.kv_get(key)
     if blob is None:
@@ -61,18 +64,25 @@ def slack_config_set(storage, key: str, value) -> None:
 
 
 def slack_config_delete(storage, key: str) -> None:
+    """Delete a single Slack config row.
+    """
     storage.kv_delete(key)
 
 
 def slack_config_clear_all(storage) -> None:
-    """Wipe every ``slack.*`` kv entry. Used by `seeqret slack logout`.
+    """Wipe every ``slack.*`` kv entry.
+
+       Used by ``seeqret slack logout`` to drop the full Slack session
+       state in a single call.
     """
     storage.kv_delete_prefix(SLACK_KV_PREFIX)
 
 
 def slack_config_snapshot(storage) -> dict:
-    """Return a dict with every known Slack config key, None for any
-    missing entries. Convenience for `slack status` and `slack doctor`.
+    """Return every known Slack config key as a dict.
+
+       Missing entries are returned as None. Convenience helper for
+       ``slack status`` and ``slack doctor``.
     """
     out = {}
     for name, key in SLACK_KEYS.items():

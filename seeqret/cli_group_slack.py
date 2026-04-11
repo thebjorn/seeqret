@@ -1,9 +1,9 @@
-"""Click command group for `seeqret slack ...` and the send/receive
-dispatchers.
+"""Click command group for ``seeqret slack ...`` plus send/receive.
 
-This file is a thin CLI layer around seeqret/slack/*. All
-security-sensitive logic (fingerprint verification, Fernet wrapping,
-delete-on-import, doctor checks) lives in the core modules.
+   This file is a thin CLI layer around ``seeqret/slack/*``. All
+   security-sensitive logic (fingerprint verification, Fernet
+   wrapping, delete-on-import, doctor checks) lives in the core
+   modules; keep this file focused on argument parsing and output.
 """
 
 import hashlib
@@ -42,6 +42,11 @@ from .slack.transport import delete_thread, poll_inbox, send_blob
 # ---- helpers ----------------------------------------------------------
 
 def _load_client(storage) -> SlackClient:
+    """Return a SlackClient built from the vault's stored user token.
+
+       Raises ``click.ClickException`` if the operator has not run
+       ``seeqret slack login`` yet.
+    """
     token = slack_config_get(storage, SLACK_KEYS['user_token'])
     if not token:
         raise click.ClickException(
@@ -51,7 +56,11 @@ def _load_client(storage) -> SlackClient:
 
 
 def _preflight_slack_cfg(snap) -> list[str]:
-    """Minimum set of doctor checks `send` enforces before dialing Slack.
+    """Return a list of preflight problems for the Slack transport.
+
+       This is the minimum set of ``slack doctor`` checks that
+       ``send`` enforces before it even dials Slack. An empty list
+       means the transport is ready to use.
     """
     problems = []
     if not snap.get('user_token'):
@@ -82,7 +91,8 @@ def _preflight_slack_cfg(snap) -> list[str]:
 
 @click.group('slack')
 def slack():
-    """Slack-based secret exchange transport."""
+    """Slack-based secret exchange transport.
+    """
     pass
 
 
@@ -158,7 +168,8 @@ def slack_login():
 
 @slack.command('logout')
 def slack_logout():
-    """Wipe all Slack configuration from the vault."""
+    """Wipe all Slack configuration from the vault.
+    """
     with seeqret_dir():
         storage = SqliteStorage()
         slack_config_clear_all(storage)
@@ -167,7 +178,8 @@ def slack_logout():
 
 @slack.command('status')
 def slack_status():
-    """Show Slack login / channel / last-seen state."""
+    """Show Slack login / channel / last-seen state.
+    """
     with seeqret_dir():
         storage = SqliteStorage()
         snap = slack_config_snapshot(storage)
@@ -393,7 +405,8 @@ def slack_doctor(accept):
               help='Output file path (file transport only)')
 @click.pass_context
 def send(ctx, filters, to, via, out):
-    """Send encrypted secrets to a user via file or Slack."""
+    """Send encrypted secrets to a user via file or Slack.
+    """
     with seeqret_dir():
         storage = SqliteStorage()
 
@@ -480,7 +493,8 @@ def send(ctx, filters, to, via, out):
               type=int, help='Poll interval in seconds (with --watch)')
 @click.pass_context
 def receive(ctx, via, watch, interval):
-    """Receive and import encrypted secrets from a transport."""
+    """Receive and import encrypted secrets from a transport.
+    """
     if via != 'slack':
         raise click.ClickException(f"unknown transport '{via}'")
 
