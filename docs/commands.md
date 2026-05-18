@@ -67,6 +67,21 @@ $❱ seeqret export self
 Import an export file. Will only work if you are the intended receipient.
 
 
+## `seeqret load`
+
+Load exported secrets into the local vault.
+
+```bash
+$❱ seeqret load -u alice -f export.json
+$❱ seeqret load -u alice -v '<exported-value>' -s command
+```
+
+If an incoming secret has the same `app:env:key` as one already in the
+vault, the existing value is **overwritten** with the imported one. This
+makes `seeqret load` safe to re-run when the sender ships an updated
+value for a secret you already have.
+
+
 ## `seeqret upgrade`
 
 Upgrade the database to the latest version.

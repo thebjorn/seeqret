@@ -54,7 +54,7 @@ def import_secrets(sender, file, value, serializer):
     )
     secrets = s.load(file or value)
     for secret in secrets:
-        storage.add_secret(secret)
+        storage.upsert_secret(secret)
 
 
 def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,

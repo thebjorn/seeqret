@@ -297,6 +297,26 @@ class SqliteStorage(Storage):
             ))
             cn.commit()
 
+    def upsert_secret(self, secret: Secret):
+        """Insert a secret, or overwrite the value/type if one already
+           exists for the same ``(app, env, key)``.
+        """
+        with self.connection() as cn:
+            cn.execute("""
+                insert into secrets (app, env, key, value, type)
+                values (?, ?, ?, ?, ?)
+                on conflict(app, env, key) do update set
+                    value = excluded.value,
+                    type = excluded.type
+            """, (
+                secret.app,
+                secret.env,
+                secret.key,
+                secret._value,
+                secret.type,
+            ))
+            cn.commit()
+
     def fetch_secrets(self, **filters):
         logger.debug('fetch_secrets: %s', filters)
         sql = """

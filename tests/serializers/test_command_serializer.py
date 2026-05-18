@@ -64,3 +64,46 @@ def test_command_roundtrip():
             secret = secrets[0]
             assert secret.key == 'FOO'
             assert secret.value == 'BAR'
+
+
+def test_load_overwrites_existing_secret():
+    """`seeqret load` must overwrite an existing secret with the imported value."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=test',
+            '--email=test@example.com',
+        ])
+        assert result.exit_code == 0
+
+        # Add a secret, export it, then change the local value.
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev',
+        ])
+        assert result.exit_code == 0
+
+        result = runner.invoke(export, ['--to=self', '-fFOO', '-scommand'])
+        assert result.exit_code == 0
+        output = result.output.split()[5:]
+
+        # Locally overwrite to a different value; the import should put it back.
+        result = runner.invoke(key, [
+            'FOO', 'LOCAL_CHANGE',
+            '--app=myapp',
+            '--env=dev',
+            '--force',
+        ])
+        assert result.exit_code == 0
+
+        result = runner.invoke(load, output)
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        with cd('seeqret'):
+            storage = SqliteStorage()
+            secrets = storage.fetch_secrets(key='FOO')
+            assert len(secrets) == 1
+            assert secrets[0].value == 'BAR'
