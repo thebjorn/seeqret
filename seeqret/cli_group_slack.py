@@ -15,7 +15,6 @@ import webbrowser
 import click
 
 from .filterspec import FilterSpec
-from .models import Secret
 from .run_utils import seeqret_dir
 from .seeqrypt.nacl_backend import load_private_key
 from .serializers.serializer import SERIALIZERS
