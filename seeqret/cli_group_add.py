@@ -61,7 +61,10 @@ def text(ctx, name: str, app: str | None = None, env: str | None = None):  # noq
               help='The app to add the secret to')
 @click.option('--env', default='*', show_default=True,
               help='The env(ironment) to add the secret to (e.g. dev/prod)')
-def key(ctx, name: str, value: str, app: str | None = None, env: str | None = None):  # noqa: F811
+@click.option('--force', is_flag=True, default=False,
+              help='Overwrite the value if the key already exists')
+def key(ctx, name: str, value: str, app: str | None = None,
+        env: str | None = None, force: bool = False):  # noqa: F811
     """Add a new NAME -> VALUE mapping.
 
        You can (should) specify the app and environment properties when adding
@@ -84,11 +87,6 @@ def key(ctx, name: str, value: str, app: str | None = None, env: str | None = No
         storage = SqliteStorage()
         fspec = FilterSpec(f'{app}:{env}:{name}')
         secrets = storage.fetch_secrets(**fspec.to_filterdict())
-        if secrets:
-            ctx.fail(click.style(
-                f'Secret {", ".join(s.key for s in secrets)} already exists!',
-                fg='red'
-            ))
         secret = Secret(
             app=app or '*',
             env=env or '*',
@@ -96,7 +94,15 @@ def key(ctx, name: str, value: str, app: str | None = None, env: str | None = No
             plaintext_value=value,
             type='str'
         )
-        storage.add_secret(secret)
+        if secrets:
+            if not force:
+                ctx.fail(click.style(
+                    f'Secret {", ".join(s.key for s in secrets)} already exists!',
+                    fg='red'
+                ))
+            storage.update_secret(secret)
+        else:
+            storage.add_secret(secret)
 
         # verify that it worked
         secrets = storage.fetch_secrets(app=app, env=env, key=name)

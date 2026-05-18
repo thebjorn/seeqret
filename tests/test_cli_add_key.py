@@ -74,6 +74,50 @@ def test_add_key():
             assert get_secret('BAZ', 'myapp', 'dev').value == 'BAR2'
 
 
+def test_add_key_force_overwrites_existing():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=test',
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert len(debug_secrets()) == 1
+
+        # Without --force, adding the same key again must fail.
+        result = runner.invoke(key, [
+            'FOO', 'NEW_VALUE',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        assert result.exit_code != 0
+        assert len(debug_secrets()) == 1
+        with seeqret_dir():
+            assert get_secret('FOO', 'myapp', 'dev').value == 'BAR'
+
+        # With --force, the existing value is overwritten in place.
+        result = runner.invoke(key, [
+            'FOO', 'NEW_VALUE',
+            '--app=myapp',
+            '--env=dev',
+            '--force',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert len(debug_secrets()) == 1
+        with seeqret_dir():
+            assert get_secret('FOO', 'myapp', 'dev').value == 'NEW_VALUE'
+
 
 def test_add_text():
     runner = CliRunner(env=dict(TESTING="TRUE"))
