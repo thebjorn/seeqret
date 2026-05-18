@@ -21,6 +21,13 @@ $❱ seeqret add key NAME "VALUE" --app "*" --env "*"
 
 `--app` and `--env` defaults to `"*"`.
 
+Adding a key that already exists in the given `app:env` will fail by
+default. Pass `--force` to overwrite the existing value in place:
+
+```bash
+$❱ seeqret add key NAME "NEW_VALUE" --app myapp --env dev --force
+```
+
 ## `seeqret list`
 
 List the contents of the vault.
