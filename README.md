@@ -176,13 +176,15 @@ FOO="bar"
 Have the other user run
 ```bash
 ❱ seeqret owner                                                                   
-┏━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ # ┃ username ┃ email           ┃ publickey                                    ┃
-┡━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ 1 │ bjorn    │ bp@norsktest.no │ MBiGKmtpckXspJkmijIPXd8GrIAgAdLOoM4pZNOyDzw= │
-└───┴──────────┴─────────────────┴──────────────────────────────────────────────┘
+┏━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ # ┃ username   ┃ email           ┃ publickey                                    ┃
+┡━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ 1 │ bjorn@mypc │ bp@norsktest.no │ MBiGKmtpckXspJkmijIPXd8GrIAgAdLOoM4pZNOyDzw= │
+└───┴────────────┴─────────────────┴──────────────────────────────────────────────┘
 ```
 and send the information to you (you should directly verify the public key).
+They can also run `seeqret introduction`, which prints a ready-to-paste
+`seeqret add user ...` command containing the same information.
 
 ### <a name='addtheuser'></a>add the user
 Add the other user as a known person to your vault:
@@ -199,19 +201,19 @@ Options:
   --pubkey TEXT    Public key for the user
   -h, --help       Show this message and exit.
 
-❱ seeqret add user --username bjorn --email bp@norsktest.no --pubkey MBiGKmtpckXspJkmijIPXd8GrIAgAdLOoM4pZNOyDzw=
+❱ seeqret add user --username bjorn@mypc --email bp@norsktest.no --pubkey MBiGKmtpckXspJkmijIPXd8GrIAgAdLOoM4pZNOyDzw=
 ...
 ```
 
 ### <a name='exportthekeysyouwanttosend'></a>export the keys you want to send
 
 ```bash
-❱ seeqret export bjorn -f :dev:FOO                                                
+❱ seeqret export --to bjorn -f :dev:FOO                                                
 {
     "from": {
         "email": "bp@norsktest.no",
         "pubkey": "MBiGKmtpckXspJkmijIPXd8GrIAgAdLOoM4pZNOyDzw=",
-        "username": "bjorn"
+        "username": "bjorn@mypc"
     },
     "secrets": [
         {
@@ -226,11 +228,16 @@ Options:
     "to": {
         "email": "bp@norsktest.no",
         "pubkey": "MBiGKmtpckXspJkmijIPXd8GrIAgAdLOoM4pZNOyDzw=",
-        "username": "bjorn"
+        "username": "bjorn@mypc"
     },
     "version": 1
 }
 ```
+
+Note that `--to bjorn` found the user `bjorn@mypc`: a bare username resolves
+to the matching `user@host` user as long as there is exactly one match. If
+you know `bjorn` on more than one machine, seeqret will refuse to guess and
+list the candidates instead.
 
 The other user can load this file with
 
@@ -245,8 +252,8 @@ The other user can load this file with
 There `command` serializer makes it convenient to send a "few" secrets e.g. in chat:
 
 ```bash
-❱ seeqret export bjorn -f :dev:FOO -s command                                     
-seeqret load -ubjorn -scommand -v1::84efd:*:dev:FOO:str:jsPI3HbN7zLNpogELFbOYZaFR4wFGs2+f6m6ZJCQ2ey88fovih5ZHzIESg==
+❱ seeqret export --to bjorn -f :dev:FOO -s command                                     
+seeqret load -ubjorn@mypc -scommand -v1::84efd:*:dev:FOO:str:jsPI3HbN7zLNpogELFbOYZaFR4wFGs2+f6m6ZJCQ2ey88fovih5ZHzIESg==
 ```
 
 the recipient only has to copy and paste the command into their terminal to import the secret.
@@ -259,43 +266,66 @@ List all commands:
 ```bash
 > seeqret info
 cli
-    add                        Add a new secret, key or user
-        file                   Add a new FILE to the vault (.env file format).
+    add                        Add a new secret.
         key                    Add a new NAME -> VALUE mapping.
+        text                   Add a new multi-line secret with key NAME, eg recovery codes.
         user                   Add a new user to the vault from a public key.
     backup                     Backup the vault to a file.
     edit                       Edit a secret or user in the vault.
-        value                  Update the secret (FILTER) to the value (VAL)
+        value                  Update secrets matching FILTER to the new VALUE.
     env                        Read filters from env.template and export values from the vault to an .env file.
-    export                     Export the vault to a user (use `seeqret load` to import)
+    export                     Export the vault TO a user (use `seeqret load` to import)
     get                        Get the value of a secret (specified by FILTER).
+    importenv                  Import secrets from a .env file.
     info                       List hierarchical command structure.
     init                       Initialize a new vault in DIR
+    introduction               Print an introduction to the vault.
     keys                       List the admins keys.
     list                       List the contents of the vault
     load                       Save exported secrets to local vault.
     owner                      List the owner of the vault
+    push                       Push secrets from the vault to external systems.
+        vercel                 Push secrets matching FILTER to the linked Vercel project.
+    receive                    Receive and import encrypted secrets from a transport.
     rm                         Remove a secret or user from the vault.
-        key                    Remove a secret from the vault.
+        key                    Remove a secret from the vault specified by FILTER.
+    send                       Send encrypted secrets to a user via file or Slack.
     serializers                List available serializers.
     server                     Server commands.
         init                   Initialize a server vault
+    setenv                     Set global environment variables from secrets matching FILTER.
+    slack                      Slack-based secret exchange transport.
+        doctor                 Preflight health check for the Slack exchange transport.
+        link                   Bind a local user to a Slack handle after fingerprint confirmation.
+        login                  OAuth login to Slack and pick an exchange channel.
+        logout                 Wipe all Slack configuration from the vault.
+        status                 Show Slack login / channel / last-seen state.
     upgrade                    Upgrade the database to the latest version
     users                      List the users in the vault
+    whoami                     Display the current user and their role in the vault.
 ```
 
 To get information on any command add the `-h` flag, e.g.:
 
 ```bash
 > seeqret export -h
-Usage: seeqret export [OPTIONS] TO
+Usage: seeqret export [OPTIONS]
 
   Export the vault TO a user (use `seeqret load` to import)
 
+  Example:
+
+  seeqret export --to u1 --to u2 --f :app1::FOO* --f :app1::BAR* --s command
+
+  This will export all secrets starting with FOO or BAR from app1 to users u1
+  and u2.
+
 Options:
-  -f, --filter TEXT      A seeqret filter string (see XXX)
+  --to TEXT              User(s) to export to (can be used multiple times) the
+                         user(s) must exist in the vault.  [required]
+  -f, --filter TEXT      A seeqret filter string (can be used multiple times)
   -s, --serializer TEXT  Name of serializer to use (`seeqret serializers` to
-                         list).
+                         list).  [default: json-crypt]
   -o, --out TEXT         Output file (default: stdout).
   -w, --windows          Export to windows format.
   -l, --linux            Export to linux format.
