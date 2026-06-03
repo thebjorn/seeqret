@@ -18,7 +18,7 @@ from seeqret.storage.sqlite_storage import SqliteStorage
 from .seeqrypt.utils import generate_symetric_key
 
 from .fileutils import is_encrypted, attrib_cmd, write_binary_file
-from .run_utils import run, seeqret_dir, cd
+from .run_utils import run, seeqret_dir, cd, hostname
 
 DRIVE_TYPES = {
     0: 'Drive Unknown',
@@ -71,7 +71,7 @@ def _validate_vault_dir(dirname, vaultname):
 
 
 def secrets_server_init(dirname, vault_dir, curuser, email, pubkey):
-    owner = run("hostname").split('.')[0]
+    owner = hostname()
     print("SEQRET:SERVER_INIT")
     if not _validate_vault_dir(dirname, '.seeqret'):
         return False

@@ -1,4 +1,5 @@
 import os
+import socket
 import sys
 from contextlib import contextmanager
 
@@ -73,9 +74,20 @@ def current_user():
     else:
         import pwd
         # username (e.g. thebjorn)
-        print("CURRENT USER", pwd.getpwuid(os.geteuid()).pw_name)
         return pwd.getpwuid(os.geteuid()).pw_name
 
 
+def hostname():
+    """Short hostname, lowercased for stable matching.
+    """
+    return socket.gethostname().split('.')[0].lower()
+
+
+def qualified_user():
+    """Hostname-qualified identity for the current user (user@host).
+    """
+    return f'{current_user()}@{hostname()}'
+
+
 if __name__ == '__main__':
-    print(current_user())
+    print(qualified_user())

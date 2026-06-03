@@ -1,6 +1,8 @@
 import os
 
-from seeqret.run_utils import current_user, run, seeqret_dir, is_initialized
+from seeqret.run_utils import (
+    current_user, hostname, qualified_user, run, seeqret_dir, is_initialized,
+)
 from click.testing import CliRunner
 from seeqret.main import cli, init, validate_current_user
 from seeqret.migrations.utils import current_version
@@ -10,6 +12,16 @@ from tests.clirunner_utils import print_result
 def test_current_user():
     print("CURRENT:USER:", current_user)
     assert current_user()
+
+
+def test_hostname():
+    assert hostname()
+    assert hostname() == hostname().lower()
+    assert '.' not in hostname()
+
+
+def test_qualified_user():
+    assert qualified_user() == f'{current_user()}@{hostname()}'
 
 
 def test_run():

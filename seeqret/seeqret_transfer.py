@@ -39,13 +39,54 @@ def unknown_user_error(username: str) -> click.ClickException:
     )
 
 
+def ambiguous_user_error(username: str,
+                         candidates: list) -> click.ClickException:
+    """Build a ClickException for a bare username matching several users.
+    """
+    cmd = lambda s: click.style(s, fg='green')  # noqa: E731
+    names = '\n            '.join(
+        f'- {cmd(u.username)} <{u.email}>' for u in candidates
+    )
+    return click.ClickException(
+        click.style(f"Ambiguous user: '{username}'.", fg='bright_red')
+        + "\n" + dedent(
+            f"""
+            The name matches more than one user:
+
+            {names}
+
+            Use the full user@host form to disambiguate
+            ({cmd('seeqret users')} to list known users).
+            """
+        )
+    )
+
+
+def resolve_user(storage, name: str):
+    """Resolve NAME to a user in the vault.
+
+       Tries an exact username match first.  A bare name (no @host
+       qualifier) falls back to matching a single qualified user, so
+       existing vaults and habits keep working.  Raises a ClickException
+       if the name is unknown or ambiguous.
+    """
+    users = storage.fetch_users()
+    for user in users:
+        if user.username == name:
+            return user
+    if '@' not in name:
+        matches = [u for u in users if u.username.startswith(name + '@')]
+        if len(matches) == 1:
+            return matches[0]
+        if len(matches) > 1:
+            raise ambiguous_user_error(name, matches)
+    raise unknown_user_error(name)
+
+
 def import_secrets(sender, file, value, serializer):
     storage = SqliteStorage()
     receiver = storage.fetch_admin()
-    sender_user = storage.fetch_user(sender)
-    if not sender_user:
-        raise unknown_user_error(sender)
-    sender = sender_user
+    sender = resolve_user(storage, sender)
 
     s = serializer(
         sender=sender,
@@ -89,9 +130,7 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
     if to == 'self':
         receiver = admin
     else:
-        receiver = storage.fetch_user(to)
-        if not receiver:
-            raise unknown_user_error(to)
+        receiver = resolve_user(storage, to)
 
     s = serializer(
         sender=admin,

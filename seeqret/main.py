@@ -8,10 +8,12 @@ from click import Context
 
 from . import __version__
 from .storage.sqlite_storage import SqliteStorage
-from .seeqret_transfer import export_secrets, import_secrets
+from .seeqret_transfer import export_secrets, import_secrets, resolve_user
 from .seeqret_init import secrets_init, upgrade_db
 from .seeqret_add import add_user
-from .run_utils import seeqret_dir, is_initialized, current_user
+from .run_utils import (
+    seeqret_dir, is_initialized, current_user, qualified_user,
+)
 from .console_utils import as_table, dochelp
 from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
@@ -93,13 +95,19 @@ DIRNAME = Path(__file__).parent
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
+def fetch_self(storage):
+    """Fetch the vault user matching the current OS user, trying the
+       hostname-qualified identity (user@host) first and falling back to
+       the bare username (vaults created before hostname qualification).
+    """
+    return (storage.fetch_user(qualified_user())
+            or storage.fetch_user(current_user()))
+
+
 def validate_current_user():
-    user = current_user()
     with seeqret_dir():
         storage = SqliteStorage()
-        # print("CURRENT USER:", user)
-        # print("USERS:", storage.fetch_users(username=user))
-        if not storage.fetch_users(username=user):
+        if not fetch_self(storage):
             click.secho("You are not a valid user of this vault", fg='red')
             return False
     return True
@@ -128,7 +136,9 @@ def info(dump):
     with Context(cli) as ctx:
         info = ctx.to_info_dict()
         if dump:
-            print(json.dumps(info, indent=4))
+            # default=str handles non-serializable values
+            # (e.g. callable option defaults)
+            print(json.dumps(info, indent=4, default=str))
             return
 
     def _help(command):
@@ -287,16 +297,18 @@ def owner():
 def whoami():
     """Display the current user and their role in the vault.
     """
-    user = current_user()
     with seeqret_dir():
         storage = SqliteStorage()
         admin = storage.fetch_admin()
-        if admin and admin.username == user:
-            click.echo(f"{user} (owner)")
-        elif storage.fetch_users(username=user):
-            click.echo(f"{user}")
+        user = fetch_self(storage)
+        if user and admin and admin.username == user.username:
+            click.echo(f"{user.username} (owner)")
+        elif user:
+            click.echo(f"{user.username}")
         else:
-            click.echo(f"{user} (not a registered user of this vault)")
+            click.echo(
+                f"{qualified_user()} (not a registered user of this vault)"
+            )
 
 
 @cli.command()
@@ -668,8 +680,8 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
     with seeqret_dir():
         storage = SqliteStorage()
         for user in to:
-            if user != 'self' and not storage.fetch_users(username=user):
-                ctx.fail(f"User {user} does not exist in the vault")
+            if user != 'self':
+                user = resolve_user(storage, user).username
             print(f"\nSeeqrets for {user}:")
             for fspec in filter:
                 export_secrets(
@@ -687,9 +699,10 @@ def introduction():
 
     with seeqret_dir():
         storage = SqliteStorage()
-        self = storage.fetch_user(current_user())
+        self = fetch_self(storage)
         if not self:
-            click.secho(f"You ({current_user()}) are not a user of this vault.", fg='red')
+            click.secho(f"You ({qualified_user()}) are not a user "
+                        "of this vault.", fg='red')
             return
         click.echo(f"seeqret add user --username {self.username} --email {self.email} --pubkey {self.pubkey}")  # noqa
 
@@ -729,9 +742,8 @@ def load(ctx, from_user, file, value, serializer):
 @click.option(
     '--user',
     prompt=True,
-    envvar='USERNAME',
+    default=lambda: qualified_user(),
     type=str,
-    # default=lambda: f"{os.environ['USERDOMAIN']}\\{os.environ['USERNAME']}"
 )
 @click.option('--email', prompt=True)
 @click.option('--pubkey', default=None, show_default=True)

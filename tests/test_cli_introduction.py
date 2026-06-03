@@ -5,7 +5,7 @@ from click.testing import CliRunner
 from seeqret.main import cli, init, introduction
 from seeqret.migrations.utils import current_version
 from tests.clirunner_utils import print_result
-from seeqret.run_utils import current_user
+from seeqret.run_utils import current_user, qualified_user
 
 
 def test_introduction():
@@ -26,3 +26,21 @@ def test_introduction():
         assert re.search(r"seeqret add user --username \S+ --email \S+ --pubkey \S+", result.output)
         assert current_user() in result.output
         assert "test@example.com" in result.output
+
+
+def test_introduction_qualified_owner():
+    """A vault owned by user@host introduces itself with the qualified name."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + qualified_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0:  print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(introduction)
+        if result.exit_code != 0:  print_result(result)
+        assert result.exit_code == 0
+        assert f"--username {qualified_user()}" in result.output

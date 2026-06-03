@@ -4,8 +4,9 @@ import sys
 from click.testing import CliRunner
 from seeqret.main import cli, init, validate_current_user
 from seeqret.migrations.utils import current_version
+from seeqret.storage.sqlite_storage import SqliteStorage
 from tests.clirunner_utils import print_result
-from seeqret.run_utils import current_user
+from seeqret.run_utils import current_user, qualified_user
 
 
 def test_init():
@@ -26,6 +27,22 @@ def test_init():
         cn = sqlite3.connect('seeqret/seeqrets.db')
         assert current_version(cn) >= 2
 
+        assert validate_current_user()
+
+
+def test_init_default_user_is_qualified():
+    """Accepting the prompted default stores user@host as the owner."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--email=test@example.com',
+        ], input='\n')  # accept the default --user prompt
+        if result.exit_code != 0:  print_result(result)
+        assert result.exit_code == 0
+
+        admin = SqliteStorage().fetch_admin()
+        assert admin.username == qualified_user()
         assert validate_current_user()
 
 

@@ -133,6 +133,12 @@ seeqret init c:\home --email <your-email>
 seeqret users
 ```
 
+Your identity defaults to `username@hostname` (e.g. `bjorn@mypc`), so the same
+username on two machines (each with its own key pair) stays distinct. Commands
+that take a username (`export --to`, `load --from-user`, `slack link`, ...)
+accept the bare username as long as it only matches one user; if it is
+ambiguous you'll be asked to use the full `user@host` form.
+
 ## <a name='addakeyvaluepair'></a>add a key/value pair
 
 ```bash

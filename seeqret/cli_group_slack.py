@@ -16,6 +16,7 @@ import click
 
 from .filterspec import FilterSpec
 from .run_utils import seeqret_dir
+from .seeqret_transfer import resolve_user
 from .seeqrypt.nacl_backend import load_private_key
 from .serializers.serializer import SERIALIZERS
 from .storage.sqlite_storage import SqliteStorage
@@ -220,14 +221,12 @@ def slack_link(username, handle):
     """
     with seeqret_dir():
         storage = SqliteStorage()
-        local = storage.fetch_user(username)
-        if not local:
-            raise click.ClickException(
-                f"local user '{username}' not found."
-            )
+        local = resolve_user(storage, username)
+        username = local.username
 
         fp = compute_fingerprint(local)
-        handle = handle or username
+        # default the handle to the bare username (strip any @host)
+        handle = handle or username.split('@')[0]
 
         click.echo(f'\nLocal user: {username} <{local.email}>')
         click.echo(f'Slack handle: @{handle}')
@@ -409,11 +408,8 @@ def send(ctx, filters, to, via, out):
     with seeqret_dir():
         storage = SqliteStorage()
 
-        recipient = storage.fetch_user(to)
-        if recipient is None:
-            raise click.ClickException(
-                f"user '{to}' not found in vault."
-            )
+        recipient = resolve_user(storage, to)
+        to = recipient.username
 
         # Build the ciphertext (same pipeline as `seeqret export`).
         admin = storage.fetch_admin()
