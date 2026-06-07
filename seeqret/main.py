@@ -8,7 +8,9 @@ from click import Context
 
 from . import __version__
 from .storage.sqlite_storage import SqliteStorage
-from .seeqret_transfer import export_secrets, import_secrets, resolve_user
+from .seeqret_transfer import (
+    export_secrets, import_secrets, resolve_recipients,
+)
 from .seeqret_init import secrets_init, upgrade_db
 from .seeqret_add import add_user
 from .run_utils import (
@@ -19,7 +21,7 @@ from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
 from .models import Secret
 from .serializers.serializer import SERIALIZERS
-from .cli_group_rm import key as rm_key
+from .cli_group_rm import key as rm_key, user as rm_user
 from .cli_group_add import key as add_key, text as add_text
 from .cli_group_server import init as server_init
 from .cli_group_slack import slack as slack_group, send as send_cmd, receive as receive_cmd
@@ -646,8 +648,10 @@ def backup(ctx):
 @cli.command()
 @click.pass_context
 @click.option('--to', multiple=True, required=True,
-              help='User(s) to export to (can be used multiple times)'
-                   ' the user(s) must exist in the vault.')
+              help='User(s) to export to (can be used multiple times). '
+                   'Use a username, "self" for the vault owner, or "all" '
+                   'for every other known user. Named users must exist '
+                   'in the vault.')
 @click.option('-f', '--filter', default=[], show_default=True, multiple=True,
               help='A seeqret filter string (can be used multiple times)')
 @click.option(
@@ -663,12 +667,22 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
            windows=False, linux=False):
     """Export the vault TO a user (use `seeqret load` to import)
 
+       --to accepts a username (bare or qualified), "self" (the vault
+       owner), or "all" (every known user except the owner). It can be
+       repeated to export to several users at once; duplicate recipients
+       are removed.
+
        Example:
 
        seeqret export --to u1 --to u2 --f :app1::FOO* --f :app1::BAR* --s command
 
        This will export all secrets starting with FOO or BAR from app1
        to users u1 and u2.
+
+       seeqret export --to all --f :app1::FOO*
+
+       This will export all secrets starting with FOO from app1 to every
+       other user in the vault.
     """
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
@@ -679,9 +693,11 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
 
     with seeqret_dir():
         storage = SqliteStorage()
-        for user in to:
-            if user != 'self':
-                user = resolve_user(storage, user).username
+        recipients = resolve_recipients(storage, to)
+        if not recipients:
+            click.secho('No users to export to.', fg='yellow')
+            return
+        for user in recipients:
             print(f"\nSeeqrets for {user}:")
             for fspec in filter:
                 export_secrets(
@@ -812,6 +828,7 @@ def rm():
 
 
 rm.add_command(rm_key)
+rm.add_command(rm_user)
 
 
 @cli.group()

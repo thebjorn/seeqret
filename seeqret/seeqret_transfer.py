@@ -83,6 +83,42 @@ def resolve_user(storage, name: str):
     raise unknown_user_error(name)
 
 
+def resolve_recipients(storage, names):
+    """Expand the ``--to`` NAMES into an ordered, de-duplicated list of
+       recipient usernames.
+
+       Two special tokens are recognised:
+       - ``self`` is passed through unchanged (the export layer maps it
+         to the vault owner).
+       - ``all`` expands to every known user *except* the vault owner.
+
+       Any other name is resolved with :func:`resolve_user` (accepting a
+       bare or qualified name).  Duplicates are removed while preserving
+       first-seen order, so ``--to all --to bob`` exports to ``bob`` once.
+    """
+    admin = storage.fetch_admin()
+    recipients = []
+    seen = set()
+
+    def add(name):
+        if name not in seen:
+            seen.add(name)
+            recipients.append(name)
+
+    for name in names:
+        if name == 'self':
+            add('self')
+        elif name == 'all':
+            for user in storage.fetch_users():
+                if admin and user.username == admin.username:
+                    continue
+                add(user.username)
+        else:
+            add(resolve_user(storage, name).username)
+
+    return recipients
+
+
 def import_secrets(sender, file, value, serializer):
     storage = SqliteStorage()
     receiver = storage.fetch_admin()

@@ -3,6 +3,17 @@
 API changes to seeqret. Use this to synchronize with
 [jseeqret](https://github.com/thebjorn/jseeqret).
 
+## Unreleased
+
+- New `seeqret rm user USERNAME` command to remove a user from the
+  vault. `USERNAME` can be a bare or qualified (`user@host`) name; a
+  bare name is accepted when it matches exactly one user. The command
+  shows the user and asks for confirmation (skip with `--yes`). The
+  vault owner cannot be removed.
+- `seeqret export --to` now accepts the special value `all`, which
+  expands to every known user except the vault owner. It can be mixed
+  with other `--to` values; duplicate recipients are removed.
+
 ## 0.4.2
 
 - Vault owners and users are now identified by hostname-qualified

@@ -70,6 +70,20 @@ you can paste directly.
 
 List known users.
 
+## `seeqret rm user USERNAME`
+
+Remove a user from the vault.
+
+```bash
+$❱ seeqret rm user bob@hispc
+```
+
+`USERNAME` can be a bare or qualified name (see [Identities](#identities));
+a bare name is accepted when it matches exactly one user. You will be
+shown the user and asked to confirm; pass `--yes` to skip the prompt.
+
+The vault owner cannot be removed.
+
 ## `seeqret export --to USER`
 
 Create an export file that can be sent to "bob"
@@ -85,6 +99,14 @@ new computer/server).
 ```bash
 $❱ seeqret export --to self
 ```
+
+Export to every other known user in one go with `--to all`:
+```bash
+$❱ seeqret export --to all -f myapp:prod:
+```
+
+`all` expands to all known users except the vault owner. It can be
+combined with other `--to` values; duplicate recipients are removed.
 
 
 ## `seeqret import FNAME`

@@ -155,6 +155,19 @@ class SqliteStorage(Storage):
 
         return self.fetch_users(username=user.username)
 
+    def remove_user(self, username: str):
+        """Delete the user with the given username from the vault.
+
+           Returns the number of rows deleted (0 if no such user).
+        """
+        with self.connection() as cn:
+            cur = cn.execute(
+                "delete from users where username = ?",
+                (username,),
+            )
+            cn.commit()
+            return cur.rowcount
+
     def fetch_user(self, username: str):
         """Fetch a single user by username.
 
