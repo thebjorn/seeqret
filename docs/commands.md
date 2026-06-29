@@ -159,10 +159,10 @@ Commands:
   info          List hierarchical command structure.
   init          Initialize a new vault in DIR
   introduction  Print an introduction to the vault.
-  keys          List the admins keys.
   list          List the contents of the vault
   load          Save exported secrets to local vault.
   owner         List the owner of the vault
+  public-key    Show the admin's public key.
   push          Push secrets from the vault to external systems.
   receive       Receive and import encrypted secrets from a transport.
   rm            Remove a secret or user from the vault.

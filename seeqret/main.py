@@ -329,15 +329,17 @@ def users(export):
             as_table('username,email,publickey', users)
 
 
-@cli.command()
-def keys():
-    """List the admins keys.
+@cli.command('public-key')
+def public_key():
+    """Show the admin's public key.
+
+    The public key is safe to share -- it is what other users encrypt
+    secrets to when sending them into this vault. The private key is
+    intentionally never printed.
     """
     with seeqret_dir():
-        private_key = read_binary_file('private.key').decode('ascii')
-        public_key = read_binary_file('public.key').decode('ascii')
-        as_table('private_key,public_key',
-                 [[private_key, public_key]])
+        pubkey = read_binary_file('public.key').decode('ascii')
+        as_table('public_key', [[pubkey]])
 
 
 @cli.command()

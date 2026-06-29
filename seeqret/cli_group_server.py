@@ -60,7 +60,7 @@ def init(ctx, email, pubkey):
     #         and
     #             ~/.ssh/seeqret-public.key
     #
-    #         (run `seeqret keys` locally to display your keys).
+    #         (run `seeqret public-key` locally to display your public key).
     #     """))
     #     return
     # if not os.path.exists(pubkey_fname):

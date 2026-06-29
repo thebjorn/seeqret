@@ -3,8 +3,11 @@
 API changes to seeqret. Use this to synchronize with
 [jseeqret](https://github.com/thebjorn/jseeqret).
 
-## Unreleased
+## 0.4.3
 
+- The `seeqret keys` command (which printed the admin private key) is
+  replaced by `seeqret public-key`, which prints only the public key.
+  The private key is never displayed.
 - New `seeqret rm user USERNAME` command to remove a user from the
   vault. `USERNAME` can be a bare or qualified (`user@host`) name; a
   bare name is accepted when it matches exactly one user. The command
