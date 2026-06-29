@@ -21,6 +21,9 @@ from .fileutils import is_writable, read_binary_file
 from .filterspec import FilterSpec
 from .models import Secret
 from .serializers.serializer import SERIALIZERS
+from .serializers.self_decrypting_html import (
+    to_self_decrypting_html, default_backup_filename,
+)
 from .cli_group_rm import key as rm_key, user as rm_user
 from .cli_group_add import key as add_key, text as add_text
 from .cli_group_server import init as server_init
@@ -636,15 +639,42 @@ def importenv(ctx, filename, app, env, update, dry_run):
 
 @cli.command()
 @click.pass_context
-def backup(ctx):
-    """Backup the vault to a file.
+@click.option('-o', '--out', default=None,
+              help='Output file path '
+                   '(default: seeqret-backup-<timestamp>.html)')
+@click.option('--password', default=None,
+              help='Encryption password (prompted if omitted)')
+def backup(ctx, out, password):
+    """Back up the vault to a password-protected HTML file.
+
+    The vault is encrypted with AES-256-GCM under a PBKDF2-derived key and
+    embedded in a self-decrypting HTML page that opens in any browser. The
+    private key is never included; restore by unlocking it, downloading
+    the JSON, and importing that file.
     """
+    if not password:
+        password = click.prompt('Backup password', hide_input=True,
+                                confirmation_prompt=True)
+    if not password:
+        raise click.ClickException('a non-empty password is required.')
+
     serializer = SERIALIZERS['backup']
     with seeqret_dir():
-        export_secrets(
+        plaintext = export_secrets(
             ctx, to='self', fspec=FilterSpec('::'),
-            serializer=serializer, out=False, windows=False, linux=False
+            serializer=serializer, out=False, windows=False, linux=False,
+            echo=False,
         )
+
+    html = to_self_decrypting_html(plaintext, password)
+    count = len(json.loads(plaintext).get('secrets', []))
+    out = out or default_backup_filename()
+    out_path = os.path.join(ctx.obj['curdir'], out)
+    with open(out_path, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+    click.secho(f"Wrote {count} secrets to {out_path}", fg='green')
+    click.echo('Open it in a browser and enter the password to decrypt.')
 
 
 @cli.command()

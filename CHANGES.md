@@ -3,6 +3,15 @@
 API changes to seeqret. Use this to synchronize with
 [jseeqret](https://github.com/thebjorn/jseeqret).
 
+## 0.4.4
+
+- `seeqret backup` now produces a **password-protected, self-decrypting
+  HTML file** (AES-256-GCM + PBKDF2-SHA256, decrypted client-side via the
+  Web Crypto API) instead of writing plaintext JSON. The format matches
+  jseeqret's encrypted backup, so a backup from either tool opens in the
+  same viewer. Use `--out` for the path and `--password` to skip the
+  prompt.
+
 ## 0.4.3
 
 - The `seeqret keys` command (which printed the admin private key) is

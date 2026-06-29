@@ -135,7 +135,7 @@ def import_secrets(sender, file, value, serializer):
 
 
 def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
-                   out=None, windows=False, linux=False):
+                   out=None, windows=False, linux=False, echo=True):
     """seeqret export <user>
 
        Exports secrets from a SQLite database, preparing them for secure
@@ -186,6 +186,6 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
         click.echo(f"Writing secrets to: {out} ({os.path.join(ctx.obj['curdir'], out)})")
         with open(os.path.join(ctx.obj['curdir'], out), 'w') as f:
             f.write(res)
-    else:
+    elif echo:
         click.echo(res)
     return res

@@ -270,7 +270,7 @@ cli
         key                    Add a new NAME -> VALUE mapping.
         text                   Add a new multi-line secret with key NAME, eg recovery codes.
         user                   Add a new user to the vault from a public key.
-    backup                     Backup the vault to a file.
+    backup                     Backup the vault to an encrypted HTML file.
     edit                       Edit a secret or user in the vault.
         value                  Update secrets matching FILTER to the new VALUE.
     env                        Read filters from env.template and export values from the vault to an .env file.

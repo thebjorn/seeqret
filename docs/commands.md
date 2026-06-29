@@ -150,7 +150,7 @@ Options:
 
 Commands:
   add           Add a new secret.
-  backup        Backup the vault to a file.
+  backup        Backup the vault to an encrypted HTML file.
   edit          Edit a secret or user in the vault.
   env           Read filters from env.template and export values from the...
   export        Export the vault TO a user (use `seeqret load` to import)
