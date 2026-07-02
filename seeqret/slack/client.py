@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+import time
+
 import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -100,13 +102,41 @@ class SlackClient:
 
     # ---- file upload / download ----
 
+    #: knobs for waiting on the async channel share (tests dial down)
+    share_poll_attempts = 20
+    share_poll_delay = 0.5
+
+    @staticmethod
+    def _share_ts(file: dict | None, channel_id: str) -> str | None:
+        """Extract the ts of the MESSAGE that shares *file* into the
+           channel, or None if the share has not materialized yet.
+
+           NEVER substitute ``file['timestamp']`` -- that is the file's
+           creation time (integer seconds), not a message ts. Anchoring
+           the recipient mention to it detaches the mention from the
+           file's thread, and the poller (which matches mentions among
+           the file message's replies) can never see the envelope.
+           This exact bug made every real-Slack exchange invisible.
+        """
+        if not file:
+            return None
+        shares = file.get('shares') or {}
+        for scope in ('private', 'public'):
+            entries = (shares.get(scope) or {}).get(channel_id)
+            if entries and entries[0].get('ts'):
+                return entries[0]['ts']
+        return None
+
     def upload_blob(self, *, channel_id: str, filename: str,
                     content_bytes: bytes) -> dict:
         """Upload a binary blob as a file-share message to a channel.
 
            Returns ``{'file_id', 'channel_id', 'ts'}`` where ``ts`` is
            the timestamp of the file-share parent message so callers
-           can thread a reply on it.
+           can thread a reply on it. Sharing happens asynchronously on
+           Slack's side, so we poll ``files.info`` until the share
+           message exists; ``ts`` is None if it never appears (the
+           transport fails closed on that).
         """
         r = self.web.files_upload_v2(
             channel=channel_id,
@@ -123,13 +153,13 @@ class SlackClient:
         if first is None:
             raise RuntimeError('files_upload_v2 returned no file info')
 
-        ts = None
-        shares = first.get('shares', {})
-        priv = shares.get('private', {}).get(channel_id)
-        if priv:
-            ts = priv[0].get('ts')
-        if ts is None and first.get('timestamp'):
-            ts = str(first['timestamp'])
+        ts = self._share_ts(dict(first), channel_id)
+        for _ in range(self.share_poll_attempts):
+            if ts is not None:
+                break
+            time.sleep(self.share_poll_delay)
+            info = self.web.files_info(file=first.get('id'))
+            ts = self._share_ts(dict(info.get('file') or {}), channel_id)
 
         return {
             'file_id': first.get('id'),
