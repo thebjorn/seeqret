@@ -50,16 +50,56 @@ def test_slack_columns_added_to_users():
                 cn.close()
 
 
-def test_migrations_version_is_3():
+def test_migrations_version_is_5():
     runner = CliRunner(env=dict(TESTING='TRUE'))
     with runner.isolated_filesystem():
         _init_vault(runner)
         with seeqret_dir():
             cn = sqlite3.connect('seeqrets.db')
             try:
-                assert current_version(cn) == 3
+                assert current_version(cn) == 5
             finally:
                 cn.close()
+
+
+def test_onboarding_table_created_v4():
+    runner = CliRunner(env=dict(TESTING='TRUE'))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        with seeqret_dir():
+            cn = sqlite3.connect('seeqrets.db')
+            try:
+                assert table_exists(cn, 'onboarding')
+            finally:
+                cn.close()
+
+
+def test_name_columns_added_v5():
+    runner = CliRunner(env=dict(TESTING='TRUE'))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        with seeqret_dir():
+            cn = sqlite3.connect('seeqrets.db')
+            try:
+                assert column_exists(cn, 'users', 'name')
+                assert column_exists(cn, 'onboarding', 'name')
+            finally:
+                cn.close()
+
+
+def test_add_user_with_name_round_trips():
+    runner = CliRunner(env=dict(TESTING='TRUE'))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        with seeqret_dir():
+            from seeqret.models import User
+            storage = SqliteStorage()
+            storage.add_user(User(
+                'steinar@sandbox', 's@example.com', 'PK',
+                name='Steinar',
+            ))
+            user = storage.fetch_user('steinar@sandbox')
+            assert user.name == 'Steinar'
 
 
 def test_kv_helpers_round_trip():

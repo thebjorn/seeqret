@@ -1,10 +1,15 @@
+# NB: string literals below must use SINGLE quotes. SQLite resolves a
+# double-quoted token as an identifier first, so e.g. `where name="name"`
+# becomes `where name=name` (always true) against pragma_table_info --
+# which made column_exists(..., 'name') report a phantom column and
+# silently skip the v005 ALTER TABLE.
 
 def table_exists(cn, table_name):
     c = cn.cursor()
     c.execute(f"""
         select count(*)
         from sqlite_master
-        where type="table" and name="{table_name}"
+        where type='table' and name='{table_name}'
     """)
     return c.fetchone()[0] > 0
 
@@ -13,8 +18,8 @@ def column_exists(cn, table_name, column_name):
     c = cn.cursor()
     c.execute(f"""
         select count(*)
-        from pragma_table_info("{table_name}")
-        where name="{column_name}"
+        from pragma_table_info('{table_name}')
+        where name='{column_name}'
     """)
     return c.fetchone()[0] > 0
 
@@ -24,7 +29,7 @@ def index_exists(cn, table_name, index_name):
     c.execute(f"""
         select count(*)
         from sqlite_master
-        where type="index" and name="{index_name}"
+        where type='index' and name='{index_name}'
     """)
     return c.fetchone()[0] > 0
 

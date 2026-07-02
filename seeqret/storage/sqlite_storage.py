@@ -95,6 +95,11 @@ class SqliteStorage(Storage):
 
     # ---- User helpers ------------------------------------------------
 
+    _USER_COLS_V5 = (
+        "username, email, pubkey, "
+        "slack_handle, slack_key_fingerprint, slack_verified_at, "
+        "name"
+    )
     _USER_COLS_V3 = (
         "username, email, pubkey, "
         "slack_handle, slack_key_fingerprint, slack_verified_at"
@@ -103,10 +108,11 @@ class SqliteStorage(Storage):
 
     @staticmethod
     def _user_from_row(rec):
-        """Hydrate a User from a row of either column layout.
+        """Hydrate a User from a row of any column layout.
 
-           Rows may or may not include the ``slack_*`` columns; they
-           are only present on migration v3 and later.
+           Rows may or may not include the ``slack_*`` columns (v3+)
+           and the ``name`` column (v5+), depending on how far the
+           vault has been migrated.
         """
         if len(rec) == 3:
             return User(*rec)
@@ -115,6 +121,7 @@ class SqliteStorage(Storage):
             slack_handle=rec[3],
             slack_key_fingerprint=rec[4],
             slack_verified_at=rec[5],
+            name=rec[6] if len(rec) > 6 else None,
         )
 
     def _has_slack_columns(self, cn) -> bool:
@@ -134,23 +141,47 @@ class SqliteStorage(Storage):
             self._slack_cols_present = bool(row and row[0])
         return self._slack_cols_present
 
+    def _has_name_column(self, cn) -> bool:
+        """Cached check for the presence of the migration v5 column.
+        """
+        if getattr(self, '_name_col_present', None) is None:
+            row = cn.execute(
+                "select count(*) from pragma_table_info('users')"
+                " where name='name'"
+            ).fetchone()
+            self._name_col_present = bool(row and row[0])
+        return self._name_col_present
+
     def _user_cols(self, cn) -> str:
         """Return the SELECT column list appropriate for the schema.
         """
+        if self._has_name_column(cn):
+            return self._USER_COLS_V5
         return self._USER_COLS_V3 if self._has_slack_columns(cn) \
             else self._USER_COLS_V2
 
     def add_user(self, user: User):
         with self.connection() as cn:
             c = cn.cursor()
-            c.execute('''
-                insert into users (username, email, pubkey)
-                values (?, ?, ?);
-            ''', (
-                user.username,
-                user.email,
-                user.pubkey
-            ))
+            if self._has_name_column(cn):
+                c.execute('''
+                    insert into users (username, email, pubkey, name)
+                    values (?, ?, ?, ?);
+                ''', (
+                    user.username,
+                    user.email,
+                    user.pubkey,
+                    getattr(user, 'name', None),
+                ))
+            else:
+                c.execute('''
+                    insert into users (username, email, pubkey)
+                    values (?, ?, ?);
+                ''', (
+                    user.username,
+                    user.email,
+                    user.pubkey
+                ))
             cn.commit()
 
         return self.fetch_users(username=user.username)

@@ -5,10 +5,14 @@ class User:
     def __init__(self, username: str, email: str, pubkey: str,
                  slack_handle: str | None = None,
                  slack_key_fingerprint: str | None = None,
-                 slack_verified_at: int | None = None):
+                 slack_verified_at: int | None = None,
+                 name: str | None = None):
         self.username = username
         self.email = email
         self.pubkey = pubkey
+        # Human display name -- the username is the machine identity
+        # (user@host), so ``name`` identifies the person (v5 schema).
+        self.name = name
         self.slack_handle = slack_handle
         self.slack_key_fingerprint = slack_key_fingerprint
         self.slack_verified_at = slack_verified_at
@@ -26,6 +30,7 @@ class User:
             username=self.username,
             email=self.email,
             pubkey=self.pubkey,
+            name=self.name,
             slack_handle=self.slack_handle,
             slack_key_fingerprint=self.slack_key_fingerprint,
             slack_verified_at=self.slack_verified_at,

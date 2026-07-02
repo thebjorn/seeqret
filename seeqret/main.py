@@ -327,9 +327,13 @@ def users(export):
         users = storage.fetch_users()
         if export:
             for user in users:
-                click.echo(f"seeqret add user --username {user.username} --email {user.email} --pubkey {user.pubkey}")  # noqa
+                name = f' --name "{user.name}"' if user.name else ''
+                click.echo(f"seeqret add user --username {user.username} --email {user.email} --pubkey {user.pubkey}{name}")  # noqa
         else:
-            as_table('username,email,publickey', users)
+            as_table('name,username,email,publickey', [
+                [u.name or '', u.username, u.email, u.pubkey]
+                for u in users
+            ])
 
 
 @cli.command('public-key')
@@ -933,14 +937,16 @@ add.add_command(add_text)
               help='Email for the user')
 @click.option('--pubkey', prompt=True,
               help='Public key for the user')
-def user(ctx, username, email, pubkey):
+@click.option('--name', default=None,
+              help='Display name (the person, not the account)')
+def user(ctx, username, email, pubkey, name):
     """Add a new user to the vault from a public key.
     """
     click.secho(f'Adding a new user {username}|{email}|{pubkey}', fg='blue')
     with seeqret_dir():
         # click.secho(f'Fetching public key: {url}', fg='blue')
         # pubkey = seeqret_add.fetch_pubkey_from_url(url)
-        add_user(pubkey, username, email)
+        add_user(pubkey, username, email, name=name)
 
 
 # ---- Slack exchange transport -----------------------------------------
