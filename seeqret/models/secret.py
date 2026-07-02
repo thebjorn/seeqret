@@ -29,13 +29,17 @@ class Secret:
                  key: str,
                  value: bytes = None,
                  type: str = 'str',
-                 plaintext_value: str = None):
+                 plaintext_value: str = None,
+                 updated_at: int = None):
         if not (value or plaintext_value):
             raise Exception('value or plaintext_value is required')
         self.app: str = app
         self.env: str = env
         self.key: str = key
         self.type = type
+        # unix seconds of the last value change (migration v006);
+        # nullable, advisory merge metadata carried by exports.
+        self.updated_at = updated_at
         self._value = value
         if plaintext_value:
             self.value = plaintext_value
@@ -54,7 +58,8 @@ class Secret:
             env=self.env,
             key=self.key,
             type=self.type,
-            value=self.value
+            value=self.value,
+            updated_at=self.updated_at,
         )
 
     def __json__(self):
@@ -64,6 +69,7 @@ class Secret:
             key=self.key,
             value=self._value,
             type=self.type,
+            updated_at=self.updated_at,
         )
 
     @property
@@ -112,6 +118,7 @@ class Secret:
             key=self.key,
             value=self.encrypt_value(sender_private_key, receiver_pubkey),
             type=self.type,
+            updated_at=self.updated_at,
         )
 
     @property

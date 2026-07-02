@@ -4,7 +4,7 @@ Safely transferring code secrets.
 
 import setuptools
 
-version = '0.4.4'
+version = '0.5.0'
 
 setuptools.setup(
     name='seeqret',

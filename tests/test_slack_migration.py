@@ -50,14 +50,14 @@ def test_slack_columns_added_to_users():
                 cn.close()
 
 
-def test_migrations_version_is_5():
+def test_migrations_version_is_6():
     runner = CliRunner(env=dict(TESTING='TRUE'))
     with runner.isolated_filesystem():
         _init_vault(runner)
         with seeqret_dir():
             cn = sqlite3.connect('seeqrets.db')
             try:
-                assert current_version(cn) == 5
+                assert current_version(cn) == 6
             finally:
                 cn.close()
 

@@ -3,6 +3,24 @@
 API changes to seeqret. Use this to synchronize with
 [jseeqret](https://github.com/thebjorn/jseeqret).
 
+## 0.5.0
+
+- **Migration v006: `secrets.updated_at`** (unix seconds, nullable) --
+  records when a secret's value last changed. Mirrors jseeqret v2.5.0;
+  the shared schema version ladder stays aligned. Storage semantics:
+  `add_secret`/`upsert_secret` honor a timestamp already carried by the
+  `Secret` (imports preserve the sender's modification time) and stamp
+  "now" otherwise; `update_secret` (local edits) always stamps "now".
+  The storage layer feature-detects the column, so vaults that have not
+  run `seeqret upgrade` keep working.
+- Exports (`encrypt_to_dict`, and therefore `json-crypt`) carry
+  `updated_at` per secret. The field is additive: older parsers of
+  either tool ignore it. jseeqret uses it as ADVISORY input to its
+  import-merge flow (conflicts are resolved by a human or an explicit
+  `--strategy mine|theirs|newer`; timestamps only pick defaults).
+- `Secret` gains an optional `updated_at` keyword argument, included in
+  `to_plaintext_dict()` and `__json__()`.
+
 ## 0.4.4
 
 - `seeqret backup` now produces a **password-protected, self-decrypting

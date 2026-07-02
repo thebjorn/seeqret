@@ -1,6 +1,7 @@
 import os
 import re
 import sqlite3
+import time
 from contextlib import contextmanager
 
 from ..run_utils import get_seeqret_dir
@@ -315,30 +316,80 @@ class SqliteStorage(Storage):
                 (prefix + '%',),
             ).fetchall()
 
+    def _has_secret_updated_at(self, cn) -> bool:
+        """Cached check for the presence of the migration v6 column,
+           so the tool keeps working against a vault that has not run
+           ``seeqret upgrade`` yet (mirrors ``_has_name_column``).
+        """
+        if getattr(self, '_secret_ts_present', None) is None:
+            row = cn.execute(
+                "select count(*) from pragma_table_info('secrets')"
+                " where name='updated_at'"
+            ).fetchone()
+            self._secret_ts_present = bool(row and row[0])
+        return self._secret_ts_present
+
+    @staticmethod
+    def _secret_stamp(secret: Secret) -> int:
+        """Timestamp to store for a secret write: the secret's own
+           value (imports preserve the sender's modification time) or
+           now.
+        """
+        if secret.updated_at is not None:
+            return secret.updated_at
+        return int(time.time())
+
     def update_secret(self, secret: Secret):
+        # The LOCAL-modification path (edit commands), so updated_at
+        # always stamps now -- unlike add/upsert, which honor the
+        # timestamp carried by imports.
         with self.connection() as cn:
-            cn.execute('''
-                UPDATE secrets SET value = ?
-                WHERE app = ? AND env = ? AND key = ?;
-            ''', (
-                secret._value,
-                secret.app, secret.env, secret.key
-            ))
+            if self._has_secret_updated_at(cn):
+                cn.execute('''
+                    UPDATE secrets SET value = ?, updated_at = ?
+                    WHERE app = ? AND env = ? AND key = ?;
+                ''', (
+                    secret._value, int(time.time()),
+                    secret.app, secret.env, secret.key
+                ))
+            else:
+                cn.execute('''
+                    UPDATE secrets SET value = ?
+                    WHERE app = ? AND env = ? AND key = ?;
+                ''', (
+                    secret._value,
+                    secret.app, secret.env, secret.key
+                ))
             cn.commit()
 
     def add_secret(self, secret: Secret):
         with self.connection() as cn:
-            sql = """
-                insert into secrets (app, env, key, value, type)
-                values (?, ?, ?, ?, ?);
-            """
-            cn.execute(sql, (
-                secret.app,
-                secret.env,
-                secret.key,
-                secret._value,
-                secret.type
-            ))
+            if self._has_secret_updated_at(cn):
+                sql = """
+                    insert into secrets (app, env, key, value, type,
+                                         updated_at)
+                    values (?, ?, ?, ?, ?, ?);
+                """
+                cn.execute(sql, (
+                    secret.app,
+                    secret.env,
+                    secret.key,
+                    secret._value,
+                    secret.type,
+                    self._secret_stamp(secret),
+                ))
+            else:
+                sql = """
+                    insert into secrets (app, env, key, value, type)
+                    values (?, ?, ?, ?, ?);
+                """
+                cn.execute(sql, (
+                    secret.app,
+                    secret.env,
+                    secret.key,
+                    secret._value,
+                    secret.type
+                ))
             cn.commit()
 
     def upsert_secret(self, secret: Secret):
@@ -346,23 +397,51 @@ class SqliteStorage(Storage):
            exists for the same ``(app, env, key)``.
         """
         with self.connection() as cn:
-            cn.execute("""
-                insert into secrets (app, env, key, value, type)
-                values (?, ?, ?, ?, ?)
-                on conflict(app, env, key) do update set
-                    value = excluded.value,
-                    type = excluded.type
-            """, (
-                secret.app,
-                secret.env,
-                secret.key,
-                secret._value,
-                secret.type,
-            ))
+            if self._has_secret_updated_at(cn):
+                cn.execute("""
+                    insert into secrets (app, env, key, value, type,
+                                         updated_at)
+                    values (?, ?, ?, ?, ?, ?)
+                    on conflict(app, env, key) do update set
+                        value = excluded.value,
+                        type = excluded.type,
+                        updated_at = excluded.updated_at
+                """, (
+                    secret.app,
+                    secret.env,
+                    secret.key,
+                    secret._value,
+                    secret.type,
+                    self._secret_stamp(secret),
+                ))
+            else:
+                cn.execute("""
+                    insert into secrets (app, env, key, value, type)
+                    values (?, ?, ?, ?, ?)
+                    on conflict(app, env, key) do update set
+                        value = excluded.value,
+                        type = excluded.type
+                """, (
+                    secret.app,
+                    secret.env,
+                    secret.key,
+                    secret._value,
+                    secret.type,
+                ))
             cn.commit()
 
     def fetch_secrets(self, **filters):
         logger.debug('fetch_secrets: %s', filters)
+        with self.connection() as cn:
+            has_ts = self._has_secret_updated_at(cn)
+        if has_ts:
+            sql = """
+                select app, env, key, value, type, updated_at
+                from secrets
+            """
+            return [Secret(app=rec[0], env=rec[1], key=rec[2],
+                           value=rec[3], type=rec[4], updated_at=rec[5])
+                    for rec in self.execute_sql(sql, **filters)]
         sql = """
             select app, env, key, value, type
             from secrets
