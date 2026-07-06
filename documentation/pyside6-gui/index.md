@@ -167,8 +167,38 @@ Export/Import/Init views can ship.
 - PySide6 is ~180 MB installed; keeping it an extra keeps the core CLI
   slim for servers (`server init` machines must never grow a Qt
   dependency).
-- Distribution later: PyInstaller one-file is the obvious route; not
-  investigated further here.
+
+### PyInstaller one-file (investigated, works)
+
+`packaging/seeqret-gui.spec` builds a standalone windowed exe:
+
+```
+pyinstaller packaging/seeqret-gui.spec --noconfirm
+```
+
+Measured results (PyInstaller 6.21, Python 3.13, Windows 11):
+
+- `dist/seeqret-gui.exe`: **32.5 MB**, no console window, needs only
+  the `SEEQRET` env var -- same contract as the CLI.
+- Cold start to visible window: **~2 s** (onefile unpacks to a temp
+  dir on every launch; a onedir build would start faster at the cost
+  of shipping a folder).
+- Build time: ~1 minute.
+
+The spec keeps the size down by excluding the Qt modules the GUI
+never imports (QtNetwork/QtQml/QtQuick/WebEngine/Pdf), the software
+OpenGL fallback DLL (~20 MB), and the Qt translation catalogs.
+`packaging/launch_gui.py` exists because PyInstaller needs a
+top-level entry script (the gui package uses relative imports).
+
+Notes for a real release:
+
+- The exe is unsigned; SmartScreen will warn on first run. Code
+  signing is the same problem jseeqret already solves with its
+  `sign.js` -- reuse that certificate.
+- No icon yet (`icon=` in the spec's EXE block once one exists).
+- PyInstaller must run on the target OS; a Windows exe needs a
+  Windows build (CI matrix job per platform).
 
 ## Prototype notes (what is on this branch)
 
