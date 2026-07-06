@@ -25,6 +25,9 @@ setuptools.setup(
         'slack_sdk',
         "pywin32  ; sys_platform == 'win32'"
     ],
+    extras_require={
+        'gui': ['PySide6'],
+    },
     classifiers=[
         'Programming Language :: Python :: 3',
         'License :: OSI Approved :: MIT License',
@@ -35,6 +38,9 @@ setuptools.setup(
     entry_points={
         'console_scripts': [
             'seeqret=seeqret.main:cli',
+        ],
+        'gui_scripts': [
+            'seeqret-gui=seeqret.gui.__main__:main',
         ],
     },
     long_description=open('README.md', encoding='utf-8').read(),
