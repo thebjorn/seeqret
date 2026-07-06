@@ -95,9 +95,6 @@ class Secret:
     def decrypt_value(cipher,
                       sender_public_key,
                       receiver_private_key) -> bytes:
-        print("CIPHER:", cipher)
-        # import base64
-        # print(base64.b64decode(cipher))
         return asymetric_decrypt_string(
             cipher, receiver_private_key, sender_public_key
         ).encode('utf-8')

@@ -5,16 +5,21 @@
    pane. Views re-query the facade every time they are shown (the
    Qt equivalent of jseeqret's ``refresh_key`` remounts).
 """
-from datetime import datetime
-
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, Qt, QTimer
+from PySide6.QtCore import (
+    QAbstractTableModel,
+    QModelIndex,
+    QSortFilterProxyModel,
+    Qt,
+    QTimer,
+)
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
+    QCompleter,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -30,21 +35,17 @@ from PySide6.QtWidgets import (
 )
 
 from .vault_facade import VaultFacade
-
-MASK_CHAR = '•'
-
-
-def mask_value(value: str) -> str:
-    """Mask a secret value like jseeqret: first 2 chars + dots.
-    """
-    txt = str(value)
-    return txt[:2] + MASK_CHAR * max(len(txt) - 2, 3)
-
-
-def format_timestamp(unix_seconds: int | None) -> str:
-    if not unix_seconds:
-        return ''
-    return datetime.fromtimestamp(unix_seconds).strftime('%Y-%m-%d %H:%M')
+from .views_slack import OnboardingView, SlackView
+from .views_transfer import ExportView, ImportView
+from .views_vault import FirstRunView, VaultSwitcher
+from .widgets import (
+    Banner,
+    fingerprint_label,
+    format_timestamp,
+    make_card,
+    mask_value,
+    view_title,
+)
 
 
 class SecretsModel(QAbstractTableModel):
@@ -107,11 +108,13 @@ class SecretsModel(QAbstractTableModel):
                 return rec['type']
             if col == 5:
                 return format_timestamp(rec.get('updated_at'))
+        if role == Qt.UserRole and col == 5:
+            return rec.get('updated_at') or 0
         return None
 
 
 class UsersModel(QAbstractTableModel):
-    COLUMNS = ('Name', 'Username', 'Email', 'Fingerprint')
+    COLUMNS = ('Name', 'Username', 'Email', 'Fingerprint', 'Slack')
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -147,6 +150,11 @@ class UsersModel(QAbstractTableModel):
             return rec['email']
         if col == 3:
             return rec['fingerprint']
+        if col == 4:
+            if not rec.get('slack_handle'):
+                return ''
+            verified = '✓' if rec.get('slack_verified_at') else '?'
+            return f"@{rec['slack_handle']} {verified}"
         return None
 
 
@@ -155,7 +163,9 @@ class SecretDialog(QDialog):
        (jseeqret rule: app:env:key is immutable, value-only edits).
     """
 
-    def __init__(self, parent=None, secret: dict | None = None):
+    def __init__(self, parent=None, secret: dict | None = None,
+                 apps: list[str] | None = None,
+                 envs: list[str] | None = None):
         super().__init__(parent)
         self.setWindowTitle('Edit secret' if secret else 'Add secret')
         self.setMinimumWidth(420)
@@ -163,6 +173,10 @@ class SecretDialog(QDialog):
 
         self.app_edit = QLineEdit(secret['app'] if secret else '*')
         self.env_edit = QLineEdit(secret['env'] if secret else '*')
+        if apps:
+            self.app_edit.setCompleter(QCompleter(sorted(set(apps))))
+        if envs:
+            self.env_edit.setCompleter(QCompleter(sorted(set(envs))))
         self.key_edit = QLineEdit(secret['key'] if secret else '')
         self.value_edit = QLineEdit(str(secret['value']) if secret else '')
         self.type_combo = QComboBox()
@@ -203,10 +217,7 @@ class SecretsView(QWidget):
         super().__init__(parent)
         self.facade = facade
         layout = QVBoxLayout(self)
-
-        title = QLabel('Secrets')
-        title.setObjectName('view_title')
-        layout.addWidget(title)
+        layout.addWidget(view_title('Secrets'))
 
         bar = QHBoxLayout()
         self.filter_edit = QLineEdit()
@@ -233,9 +244,12 @@ class SecretsView(QWidget):
         layout.addLayout(bar)
 
         self.model = SecretsModel(self)
+        self.proxy = QSortFilterProxyModel(self)
+        self.proxy.setSourceModel(self.model)
+        self.proxy.setSortRole(Qt.DisplayRole)
         self.table = QTableView()
-        self.table.setModel(self.model)
-        self.table.setSortingEnabled(False)
+        self.table.setModel(self.proxy)
+        self.table.setSortingEnabled(True)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableView.SelectRows)
         self.table.setSelectionMode(QTableView.SingleSelection)
@@ -252,6 +266,7 @@ class SecretsView(QWidget):
         self.status_label = QLabel('')
         self.status_label.setProperty('class', 'mono')
         layout.addWidget(self.status_label)
+        self._total = 0
 
     # -- helpers ------------------------------------------------------
 
@@ -259,7 +274,8 @@ class SecretsView(QWidget):
         ixs = self.table.selectionModel().selectedRows()
         if not ixs:
             return None
-        return self.model.rows[ixs[0].row()]
+        source_ix = self.proxy.mapToSource(ixs[0])
+        return self.model.rows[source_ix.row()]
 
     def flash(self, message: str) -> None:
         self.status_label.setText(message)
@@ -269,20 +285,27 @@ class SecretsView(QWidget):
         spec = self.filter_edit.text().strip() or '*:*:*'
         try:
             rows = self.facade.list_secrets(spec)
+            self._total = len(self.facade.list_secrets('*:*:*'))
         except Exception as e:
             self.count_label.setText(f'error: {e}')
             return
         self.model.set_rows(rows)
-        self.count_label.setText(f'{len(rows)} secrets')
+        self.count_label.setText(f'{len(rows)} of {self._total} secrets')
 
     # -- actions ------------------------------------------------------
 
     def on_double_click(self, index) -> None:
         if index.column() == 3:
-            self.model.toggle_reveal(index.row())
+            source_ix = self.proxy.mapToSource(index)
+            self.model.toggle_reveal(source_ix.row())
 
     def add_secret(self) -> None:
-        dlg = SecretDialog(self)
+        rows = self.model.rows
+        dlg = SecretDialog(
+            self,
+            apps=[r['app'] for r in rows],
+            envs=[r['env'] for r in rows],
+        )
         if dlg.exec() != QDialog.Accepted:
             return
         rec = dlg.result_dict()
@@ -329,44 +352,166 @@ class SecretsView(QWidget):
         self.refresh()
 
 
+class UserDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Add user')
+        self.setMinimumWidth(480)
+        form = QFormLayout(self)
+        self.username_edit = QLineEdit()
+        self.username_edit.setPlaceholderText('user@host')
+        self.email_edit = QLineEdit()
+        self.pubkey_edit = QLineEdit()
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText('display name (optional)')
+        form.addRow('Username', self.username_edit)
+        form.addRow('Email', self.email_edit)
+        form.addRow('Public key', self.pubkey_edit)
+        form.addRow('Name', self.name_edit)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        form.addRow(buttons)
+
+
+class LinkDialog(QDialog):
+    """The OOB fingerprint ceremony for binding a Slack handle.
+    """
+
+    def __init__(self, username: str, fp: str, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(f'Link {username} to Slack')
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel(
+            f'Public key fingerprint for {username}:'))
+        layout.addWidget(fingerprint_label(fp))
+        layout.addWidget(QLabel(
+            'Confirm OUT-OF-BAND (voice, in person -- not via Slack)'
+            ' that this matches what the other party sees locally.'))
+        self.verified_box = QCheckBox(
+            'I verified this fingerprint on a voice call')
+        layout.addWidget(self.verified_box)
+        form = QFormLayout()
+        self.handle_edit = QLineEdit(username.split('@')[0])
+        form.addRow('Slack handle (no @)', self.handle_edit)
+        self.fp_edit = QLineEdit()
+        form.addRow('Type the fingerprint back', self.fp_edit)
+        layout.addLayout(form)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+
 class UsersView(QWidget):
     def __init__(self, facade: VaultFacade, parent=None):
         super().__init__(parent)
         self.facade = facade
         layout = QVBoxLayout(self)
-        title = QLabel('Users')
-        title.setObjectName('view_title')
-        layout.addWidget(title)
+        layout.addWidget(view_title('Users'))
+        self.banner = Banner()
+        layout.addWidget(self.banner)
+
+        bar = QHBoxLayout()
+        add_btn = QPushButton('Add user')
+        add_btn.clicked.connect(self.add_user)
+        bar.addWidget(add_btn)
+        link_btn = QPushButton('Link to Slack')
+        link_btn.setProperty('class', 'secondary')
+        link_btn.clicked.connect(self.link_user)
+        bar.addWidget(link_btn)
+        del_btn = QPushButton('Delete')
+        del_btn.setProperty('class', 'secondary')
+        del_btn.clicked.connect(self.delete_user)
+        bar.addWidget(del_btn)
+        bar.addStretch(1)
+        layout.addLayout(bar)
 
         self.model = UsersModel(self)
         self.table = QTableView()
         self.table.setModel(self.model)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableView.SelectRows)
+        self.table.setSelectionMode(QTableView.SingleSelection)
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(
             QHeaderView.Stretch)
         layout.addWidget(self.table, 1)
 
     def refresh(self) -> None:
+        self.banner.clear_message()
         self.model.set_rows(self.facade.list_users())
 
+    def current_user(self) -> dict | None:
+        ixs = self.table.selectionModel().selectedRows()
+        return self.model.rows[ixs[0].row()] if ixs else None
 
-def make_card(title: str, body: str, big: bool = False) -> QFrame:
-    card = QFrame()
-    card.setProperty('class', 'card')
-    layout = QVBoxLayout(card)
-    body_label = QLabel(body)
-    if big:
-        body_label.setProperty('class', 'stat_number')
-    else:
-        body_label.setProperty('class', 'mono')
-    body_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-    title_label = QLabel(title)
-    title_label.setProperty('class', 'muted')
-    layout.addWidget(body_label)
-    layout.addWidget(title_label)
-    return card
+    def add_user(self) -> None:
+        dlg = UserDialog(self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        try:
+            self.facade.add_user(
+                dlg.username_edit.text().strip(),
+                dlg.email_edit.text().strip(),
+                dlg.pubkey_edit.text().strip(),
+                dlg.name_edit.text().strip() or None,
+            )
+        except Exception as e:
+            self.banner.show_message(str(e), 'error')
+            return
+        self.refresh()
+
+    def link_user(self) -> None:
+        rec = self.current_user()
+        if not rec:
+            return
+        try:
+            fp = self.facade.user_fingerprint(rec['username'])
+        except Exception as e:
+            self.banner.show_message(str(e), 'error')
+            return
+        dlg = LinkDialog(rec['username'], fp, self)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        if not dlg.verified_box.isChecked():
+            self.banner.show_message(
+                'Refusing to bind: fingerprint not verified.', 'error')
+            return
+        try:
+            self.facade.link_slack(
+                rec['username'],
+                dlg.handle_edit.text().strip(),
+                dlg.fp_edit.text(),
+            )
+        except Exception as e:
+            self.banner.show_message(str(e), 'error')
+            return
+        self.banner.show_message(
+            f"Bound {rec['username']} -> @{dlg.handle_edit.text()}",
+            'success')
+        self.refresh()
+
+    def delete_user(self) -> None:
+        rec = self.current_user()
+        if not rec:
+            return
+        if rec['is_owner']:
+            self.banner.show_message(
+                'The vault owner cannot be deleted.', 'error')
+            return
+        answer = QMessageBox.question(
+            self, 'Delete user', f"Delete {rec['username']}?")
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            self.facade.remove_user(rec['username'])
+        except Exception as e:
+            self.banner.show_message(str(e), 'error')
+            return
+        self.refresh()
 
 
 class DashboardView(QWidget):
@@ -387,9 +532,7 @@ class DashboardView(QWidget):
                     if sub.widget():
                         sub.widget().deleteLater()
 
-        title = QLabel('Dashboard')
-        title.setObjectName('view_title')
-        self.layout.addWidget(title)
+        self.layout.addWidget(view_title('Dashboard'))
 
         status = self.facade.vault_status()
         n_secrets = len(self.facade.list_secrets())
@@ -422,9 +565,7 @@ class IntroductionView(QWidget):
             if item.widget():
                 item.widget().deleteLater()
 
-        title = QLabel('Introduction')
-        title.setObjectName('view_title')
-        self.layout.addWidget(title)
+        self.layout.addWidget(view_title('Introduction'))
 
         intro = self.facade.introduction()
         if not intro:
@@ -434,10 +575,7 @@ class IntroductionView(QWidget):
             self.layout.addStretch(1)
             return
 
-        fp = QLabel(intro['fingerprint'])
-        fp.setObjectName('fingerprint')
-        self.layout.addWidget(fp)
-
+        self.layout.addWidget(fingerprint_label(intro['fingerprint']))
         for field in ('username', 'name', 'email', 'pubkey'):
             if intro.get(field):
                 self.layout.addWidget(
@@ -451,35 +589,9 @@ class IntroductionView(QWidget):
         self.layout.addStretch(1)
 
 
-class PlaceholderView(QWidget):
-    """Stub for views not in the prototype (Export/Import/Onboarding).
-    """
-
-    def __init__(self, name: str, note: str, parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        title = QLabel(name)
-        title.setObjectName('view_title')
-        layout.addWidget(title)
-        body = QLabel(note)
-        body.setProperty('class', 'muted')
-        body.setWordWrap(True)
-        layout.addWidget(body)
-        layout.addStretch(1)
-
-    def refresh(self) -> None:
-        pass
-
-
 class MainWindow(QMainWindow):
-    VIEWS = (
-        ('Dashboard', 'dashboard'),
-        ('Secrets', 'secrets'),
-        ('Users', 'users'),
-        ('Export', 'export'),
-        ('Import', 'import'),
-        ('Introduction', 'introduction'),
-    )
+    VIEW_NAMES = ('Dashboard', 'Secrets', 'Users', 'Export', 'Import',
+                  'Slack', 'Onboarding', 'Introduction')
 
     def __init__(self, facade: VaultFacade):
         super().__init__()
@@ -504,31 +616,35 @@ class MainWindow(QMainWindow):
         brand.setObjectName('brand')
         sidebar_layout.addWidget(brand)
 
+        self.switcher = VaultSwitcher(facade)
+        self.switcher.switched.connect(self.on_vault_switched)
+        sidebar_layout.addWidget(self.switcher)
+
         self.nav = QListWidget()
         self.nav.setObjectName('sidebar')
-        for label, _ in self.VIEWS:
+        for label in self.VIEW_NAMES:
             self.nav.addItem(label)
         self.nav.currentRowChanged.connect(self.switch_view)
         sidebar_layout.addWidget(self.nav, 1)
 
-        footer = QLabel(f"● {status['current_user']}\n"
-                        f"{status['vault_dir']}")
-        footer.setObjectName('sidebar_footer')
-        footer.setWordWrap(True)
-        sidebar_layout.addWidget(footer)
+        self.footer = QLabel('')
+        self.footer.setObjectName('sidebar_footer')
+        self.footer.setWordWrap(True)
+        sidebar_layout.addWidget(self.footer)
 
         self.stack = QStackedWidget()
-        stub_note = ('Not part of the prototype -- see '
-                     'documentation/pyside6-gui/index.md, phase 2.')
         self.views = [
             DashboardView(facade),
             SecretsView(facade),
             UsersView(facade),
-            PlaceholderView('Export', stub_note),
-            PlaceholderView('Import', stub_note),
+            ExportView(facade),
+            ImportView(facade),
+            SlackView(facade),
+            OnboardingView(facade),
             IntroductionView(facade),
         ]
-        for view in self.views:
+        self.first_run = FirstRunView(facade, self.on_vault_switched)
+        for view in self.views + [self.first_run]:
             container = QWidget()
             wrap = QVBoxLayout(container)
             wrap.setContentsMargins(24, 16, 24, 16)
@@ -538,8 +654,37 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(sidebar_box)
         root_layout.addWidget(self.stack, 1)
         self.setCentralWidget(root)
-        self.nav.setCurrentRow(0)
+
+        self.switcher.refresh()
+        self.update_footer()
+        if status['initialized']:
+            self.nav.setCurrentRow(0)
+        else:
+            self.show_first_run()
+
+    def update_footer(self) -> None:
+        status = self.facade.vault_status()
+        self.footer.setText(f"● {status['current_user']}\n"
+                            f"{status['vault_dir'] or '(no vault)'}")
+
+    def show_first_run(self) -> None:
+        self.stack.setCurrentIndex(len(self.views))
+        self.nav.setEnabled(False)
+
+    def on_vault_switched(self) -> None:
+        self.switcher.refresh()
+        self.update_footer()
+        status = self.facade.vault_status()
+        if status['initialized']:
+            self.nav.setEnabled(True)
+            row = max(self.nav.currentRow(), 0)
+            self.nav.setCurrentRow(row)
+            self.switch_view(row)
+        else:
+            self.show_first_run()
 
     def switch_view(self, row: int) -> None:
+        if row < 0:
+            return
         self.views[row].refresh()
         self.stack.setCurrentIndex(row)

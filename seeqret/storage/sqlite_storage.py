@@ -316,6 +316,103 @@ class SqliteStorage(Storage):
                 (prefix + '%',),
             ).fetchall()
 
+    # ---- onboarding rows (mirrors jseeqret) --------------------------
+
+    _ONBOARDING_COLS = (
+        'email', 'username', 'slack_handle', 'slack_user_id',
+        'project_filter', 'fingerprint', 'pubkey', 'state',
+        'created_at', 'updated_at', 'name',
+    )
+
+    @classmethod
+    def _onboarding_from_row(cls, rec):
+        return dict(zip(cls._ONBOARDING_COLS, rec))
+
+    def onboarding_create(self, fields: dict) -> None:
+        """Insert (or reset) the onboarding row for an email.
+
+           Rows are keyed by email; re-inviting replaces the row so
+           an expired invite can be resent cleanly.
+        """
+        now = int(time.time())
+        with self.connection() as cn:
+            cn.execute("""
+                insert into onboarding
+                    (email, username, slack_handle, slack_user_id,
+                     project_filter, fingerprint, pubkey, state,
+                     created_at, updated_at, name)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(email) do update set
+                    username = excluded.username,
+                    slack_handle = excluded.slack_handle,
+                    slack_user_id = excluded.slack_user_id,
+                    project_filter = excluded.project_filter,
+                    fingerprint = excluded.fingerprint,
+                    pubkey = excluded.pubkey,
+                    state = excluded.state,
+                    created_at = excluded.created_at,
+                    updated_at = excluded.updated_at,
+                    name = excluded.name
+            """, (
+                fields['email'],
+                fields.get('username'),
+                fields.get('slack_handle'),
+                fields.get('slack_user_id'),
+                fields.get('project_filter'),
+                fields.get('fingerprint'),
+                fields.get('pubkey'),
+                fields['state'],
+                now, now,
+                fields.get('name'),
+            ))
+            cn.commit()
+
+    def onboarding_get(self, email: str) -> dict | None:
+        with self.connection() as cn:
+            rec = cn.execute(f"""
+                select {', '.join(self._ONBOARDING_COLS)}
+                from onboarding where email = ?
+            """, (email,)).fetchone()
+        return self._onboarding_from_row(rec) if rec else None
+
+    def onboarding_list(self) -> list[dict]:
+        with self.connection() as cn:
+            recs = cn.execute(f"""
+                select {', '.join(self._ONBOARDING_COLS)}
+                from onboarding order by created_at
+            """).fetchall()
+        return [self._onboarding_from_row(rec) for rec in recs]
+
+    def onboarding_set_state(self, email: str, state: str) -> None:
+        with self.connection() as cn:
+            cn.execute("""
+                update onboarding set state = ?, updated_at = ?
+                where email = ?
+            """, (state, int(time.time()), email))
+            cn.commit()
+
+    def onboarding_update(self, email: str, fields: dict) -> None:
+        """Update allowed columns on an onboarding row.
+        """
+        allowed = ('username', 'name', 'slack_handle', 'slack_user_id',
+                   'project_filter', 'fingerprint', 'pubkey', 'state')
+        cols = [k for k in fields if k in allowed]
+        if not cols:
+            return
+        sets = ', '.join(f'{c} = ?' for c in cols)
+        with self.connection() as cn:
+            cn.execute(
+                f'update onboarding set {sets}, updated_at = ?'
+                ' where email = ?',
+                [fields[c] for c in cols] + [int(time.time()), email],
+            )
+            cn.commit()
+
+    def onboarding_delete(self, email: str) -> None:
+        with self.connection() as cn:
+            cn.execute('delete from onboarding where email = ?', (email,))
+            cn.commit()
+
     def _has_secret_updated_at(self, cn) -> bool:
         """Cached check for the presence of the migration v6 column,
            so the tool keeps working against a vault that has not run

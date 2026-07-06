@@ -1,9 +1,10 @@
 import textwrap
-from os import abort
 
 import click
 import os
 import sys
+
+from .errors import SeeqretError
 
 from seeqret.migrations.initialize_database import init_db
 # from seeqret.db_utils import fetch_admin
@@ -114,8 +115,7 @@ def create_system_key(vault_dir):
             if os.path.exists('seeqret.key'):
                 click.secho('seeqret.key created', fg='green')
             else:
-                click.secho('seeqret.key creation failed', fg='red')
-                abort()
+                raise SeeqretError('seeqret.key creation failed')
 
 
 def create_user_keys(vault_dir, user, pubkey=None, key=None):
@@ -213,11 +213,11 @@ def setup_vault(vault_dir, user, type='client'):
                 run("cipher /e seeqret")
                 click.echo("Checking if encryption worked..")
                 if not is_encrypted("seeqret"):
-                    click.echo(
-                        "cipher /e seeqret (this is very bad, aborting...)"
-                    )
                     # this is very, very bad..
-                    abort()
+                    raise SeeqretError(
+                        'cipher /e seeqret failed -- the vault directory '
+                        'could not be EFS-encrypted.'
+                    )
                 else:
                     click.echo("vault is encrypted")
             else:
@@ -236,19 +236,17 @@ def setup_vault(vault_dir, user, type='client'):
         """))
 
         if not click.confirm("Do you want to continue?"):
-            abort()
+            raise SeeqretError('aborted by user')
         if not vault_dir.exists():
             click.secho('adding group seeqret...', fg='blue')
             run("sudo getent group seeqret || sudo groupadd seeqret")
             if not run("sudo getent group seeqret"):
-                click.echo("Could not create group seeqret")
-                abort()
+                raise SeeqretError('Could not create group seeqret')
 
             click.secho(f'adding user {user} to group seeqret...', fg='blue')
             run(f"sudo usermod -aG seeqret {user}")
             if 'seeqret' not in run(f"groups {user}"):
-                click.echo("Could not add user to group seeqret")
-                abort()
+                raise SeeqretError('Could not add user to group seeqret')
 
             click.secho(f'changing group ownership of {vault_dir.parent} to seeqret...', fg='blue')
             run(f"sudo chgrp seeqret {vault_dir.parent}")
@@ -259,6 +257,7 @@ def setup_vault(vault_dir, user, type='client'):
             try:
                 vault_dir.mkdir(0o770)
             except PermissionError:
-                click.echo("You must login again, and reissue the command to continue.")
-                abort()
+                raise SeeqretError(
+                    'You must login again, and reissue the command '
+                    'to continue.')
         run(f"sudo chmod g+w {vault_dir}")

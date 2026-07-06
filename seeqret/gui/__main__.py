@@ -1,10 +1,11 @@
 """Entry point: ``python -m seeqret.gui``.
 """
+import os
 import sys
 
-from PySide6.QtWidgets import QApplication, QMessageBox
+from PySide6.QtWidgets import QApplication
 
-from ..run_utils import is_initialized
+from ..vault_registry import active_vault_dir
 from .main_window import MainWindow
 from .theme import STYLESHEET
 from .vault_facade import VaultFacade
@@ -14,13 +15,12 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setStyleSheet(STYLESHEET)
 
-    if not is_initialized():
-        QMessageBox.critical(
-            None, 'seeqret',
-            'No initialized vault found.\n\n'
-            'Set the SEEQRET environment variable to your vault '
-            'directory (and run `seeqret init` first if needed).')
-        return 1
+    # jseeqret-style resolution: registry default first, then the
+    # SEEQRET env var. An uninitialized state lands on the
+    # first-run view instead of erroring out.
+    vault_dir = active_vault_dir()
+    if vault_dir:
+        os.environ['SEEQRET'] = vault_dir
 
     window = MainWindow(VaultFacade())
     window.show()

@@ -665,7 +665,7 @@ def backup(ctx, out, password):
     serializer = SERIALIZERS['backup']
     with seeqret_dir():
         plaintext = export_secrets(
-            ctx, to='self', fspec=FilterSpec('::'),
+            to='self', fspec=FilterSpec('::'),
             serializer=serializer, out=False, windows=False, linux=False,
             echo=False,
         )
@@ -737,9 +737,10 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
             print(f"\nSeeqrets for {user}:")
             for fspec in filter:
                 export_secrets(
-                    ctx,
                     to=user, fspec=FilterSpec(fspec),
-                    serializer=serializer_cls, out=out, windows=windows, linux=linux
+                    serializer=serializer_cls, out=out,
+                    out_dir=(ctx.obj or {}).get('curdir', '.'),
+                    windows=windows, linux=linux
                 )
 
 

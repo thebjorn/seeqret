@@ -4,19 +4,28 @@ from textwrap import dedent
 
 import click
 
+from .errors import AmbiguousUserError, UnknownUserError
 from .filterspec import FilterSpec
+from .run_utils import get_seeqret_dir
 from .seeqrypt.nacl_backend import (
     load_private_key,
 )
 from .storage.sqlite_storage import SqliteStorage
 
 
-def unknown_user_error(username: str) -> click.ClickException:
-    """Build a ClickException with helpful guidance for an unknown user.
+def vault_private_key():
+    """Load the vault's private key by absolute path, so callers
+       don't need the CWD to be the vault directory.
+    """
+    return load_private_key(os.path.join(get_seeqret_dir(), 'private.key'))
+
+
+def unknown_user_error(username: str) -> UnknownUserError:
+    """Build an UnknownUserError with helpful guidance.
     """
     cmd = lambda s: click.style(s, fg='green')  # noqa: E731
     cmd_blue = lambda s: click.style(s, fg='blue')  # noqa: E731
-    return click.ClickException(
+    return UnknownUserError(
         click.style(f"Unknown user: '{username}'.", fg='bright_red') + "\n" + dedent(
             f"""
             Use
@@ -35,19 +44,21 @@ def unknown_user_error(username: str) -> click.ClickException:
             email). When you run the command, your vault will know about the new user
             (and their public key).
             """
-        )
+        ),
+        username=username,
     )
 
 
 def ambiguous_user_error(username: str,
-                         candidates: list) -> click.ClickException:
-    """Build a ClickException for a bare username matching several users.
+                         candidates: list) -> AmbiguousUserError:
+    """Build an AmbiguousUserError for a bare username matching
+       several users.
     """
     cmd = lambda s: click.style(s, fg='green')  # noqa: E731
     names = '\n            '.join(
         f'- {cmd(u.username)} <{u.email}>' for u in candidates
     )
-    return click.ClickException(
+    return AmbiguousUserError(
         click.style(f"Ambiguous user: '{username}'.", fg='bright_red')
         + "\n" + dedent(
             f"""
@@ -58,7 +69,9 @@ def ambiguous_user_error(username: str,
             Use the full user@host form to disambiguate
             ({cmd('seeqret users')} to list known users).
             """
-        )
+        ),
+        username=username,
+        candidates=candidates,
     )
 
 
@@ -127,15 +140,16 @@ def import_secrets(sender, file, value, serializer):
     s = serializer(
         sender=sender,
         receiver=receiver,
-        receiver_private_key=load_private_key('private.key'),
+        receiver_private_key=vault_private_key(),
     )
     secrets = s.load(file or value)
     for secret in secrets:
         storage.upsert_secret(secret)
 
 
-def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
-                   out=None, windows=False, linux=False, echo=True):
+def export_secrets(*, to: str, fspec: FilterSpec, serializer,
+                   out=None, out_dir='.', windows=False, linux=False,
+                   echo=True):
     """seeqret export <user>
 
        Exports secrets from a SQLite database, preparing them for secure
@@ -171,7 +185,7 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
     s = serializer(
         sender=admin,
         receiver=receiver,
-        sender_private_key=load_private_key('private.key'),
+        sender_private_key=vault_private_key(),
     )
 
     secrets = storage.fetch_secrets(**fspec.to_filterdict())
@@ -183,8 +197,8 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
     res = s.dumps(secrets, system)
 
     if out:
-        click.echo(f"Writing secrets to: {out} ({os.path.join(ctx.obj['curdir'], out)})")
-        with open(os.path.join(ctx.obj['curdir'], out), 'w') as f:
+        click.echo(f"Writing secrets to: {out} ({os.path.join(out_dir, out)})")
+        with open(os.path.join(out_dir, out), 'w') as f:
             f.write(res)
     elif echo:
         click.echo(res)

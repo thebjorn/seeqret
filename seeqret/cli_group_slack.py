@@ -36,6 +36,7 @@ from .slack.identity import (
     require_verified_binding,
 )
 from .slack.oauth import run_oauth_flow
+from .slack.session import slack_preflight_problems
 from .slack.transport import delete_thread, poll_inbox, send_blob
 
 
@@ -58,33 +59,10 @@ def _load_client(storage) -> SlackClient:
 def _preflight_slack_cfg(snap) -> list[str]:
     """Return a list of preflight problems for the Slack transport.
 
-       This is the minimum set of ``slack doctor`` checks that
-       ``send`` enforces before it even dials Slack. An empty list
-       means the transport is ready to use.
+       Thin alias for ``slack.session.slack_preflight_problems`` so
+       the CLI and GUI enforce the identical check set.
     """
-    problems = []
-    if not snap.get('user_token'):
-        problems.append('not logged in (seeqret slack login)')
-    if not snap.get('channel_id'):
-        problems.append('no channel set')
-
-    token_created_at = snap.get('token_created_at')
-    if token_created_at:
-        age_days = int((time.time() - token_created_at) / 86400)
-        if age_days > 90:
-            problems.append(f'token is {age_days} days old (>90)')
-
-    mfa_attested_at = snap.get('mfa_attested_at')
-    if not mfa_attested_at:
-        problems.append('MFA not attested (seeqret slack doctor --accept)')
-    else:
-        age_days = int((time.time() - mfa_attested_at) / 86400)
-        if age_days > 90:
-            problems.append(
-                f'MFA attestation is {age_days} days old (>90)'
-            )
-
-    return problems
+    return slack_preflight_problems(snap)
 
 
 # ---- slack group ------------------------------------------------------

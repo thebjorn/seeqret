@@ -145,19 +145,68 @@ The read/write path is clean, but three flows mix Click I/O into logic:
 None of these block a read-mostly GUI; all three are needed before the
 Export/Import/Init views can ship.
 
-## Phasing
+## Phasing (all four phases now on this branch)
 
-1. **Prototype (this branch)**: shell + facade + Dashboard, Secrets
-   (filter/sort/mask/copy/add/edit/delete), Users (read + add/delete),
-   Introduction. Export/Import/Onboarding stubbed in the sidebar.
+1. **Prototype**: shell + facade + Dashboard, Secrets, Users,
+   Introduction. ✔
 2. **Transfer views**: de-Click `export_secrets`/`resolve_user`, build
-   Export (recipients, serializer, clipboard/file) and Import with the
-   two-phase conflict table.
+   Export (recipients, serializer, clipboard/file/Slack) and Import
+   with the two-phase conflict table. ✔
 3. **Vault lifecycle**: create-vault dialog (de-Click `secrets_init`),
-   vault switcher (needs a registry -- jseeqret has one, seeqret does
-   not yet), first-run wizard as `QWizard`.
-4. **Slack**: login/status/link ceremony/send/receive, onboarding panel.
-   All the polling flows move to worker threads.
+   vault switcher over the shared registry, first-run view. ✔
+4. **Slack**: login/status/attest/selftest, link ceremony, Slack
+   export, onboarding panel. Slack calls run on worker threads. ✔
+
+## Core ports added for parity (usable by CLI too)
+
+The GUI work surfaced functionality jseeqret had that the Python core
+lacked. These are now proper core modules, independent of Qt:
+
+- `seeqret/errors.py` -- `SeeqretError(ClickException)` with an
+  ANSI-free ``plain`` message; `resolve_user` errors and
+  `seeqret_init`'s former ``os.abort()`` paths now raise these.
+- `seeqret/vault_registry.py` -- `~/.seeqret/vaults.json`,
+  byte-compatible with jseeqret's registry (flat name->path map with
+  a ``_default`` marker), so both tools share registered vaults.
+- `seeqret/merge.py` -- two-phase import merge
+  (plan/conflicts/resolutions, ``mine``/``theirs``/``newer``).
+- `seeqret/serializers/jsoncrypt_serializer.py` -- payload aligned to
+  jseeqret's shape (``from``/``to`` are usernames; ``signature`` is
+  the 5-char fingerprint over the encrypted-secrets array) and
+  **`load` implemented** -- json-crypt import previously raised
+  ``NotImplementedError``, which also broke ``slack receive``.
+- `seeqret/serializers/user_list_serializer.py` +
+  `seeqret/serializers/envelope.py` -- the onboarding exchange
+  formats (`{v, kind, payload}` envelope, encrypted user lists).
+- `seeqret/onboarding.py` -- the full TL/new-user state machine
+  (invite/introduce/poll/approve/provision/ack) mirroring
+  jseeqret's onboarding.js, including the constant-time
+  ``pubkeys_equal`` trust anchor and the two Box-authenticated
+  proof plaintexts.
+- `seeqret/slack/session.py` + `seeqret/slack/selftest.py` --
+  preflight-asserted transport context and the loopback selftest.
+- `SqliteStorage.onboarding_*` -- row CRUD for the (already
+  schema-mirrored) onboarding table.
+
+Covered by `tests/test_parity_core.py` (registry shape, envelope,
+json-crypt roundtrip, merge semantics, user-list crypto, onboarding
+rows + TTL expiry, facade conflict flow).
+
+## Known divergences from jseeqret
+
+- No per-column filter row on the secrets table (the glob FilterBar
+  covers app:env:key filtering); click-to-sort works via
+  `QSortFilterProxyModel`.
+- The onboarding poll cursor advances only past *handled* messages;
+  jseeqret's stale-noise fast-forward (`STALE_AFTER_SECONDS`) is not
+  ported (correct, less efficient on noisy channels).
+- No auto-update UI (pip/PyInstaller distribution instead of
+  electron-updater) and no new-user first-run `QWizard` yet -- the
+  first-run view covers vault creation; a wizard walking
+  invite-verify-introduce-wait is the natural next step.
+- Slack-dependent flows (OAuth login, send/receive, onboarding
+  traffic, selftest) are wired end-to-end but have not been exercised
+  against a live workspace from this GUI.
 
 ## Packaging
 
@@ -200,24 +249,36 @@ Notes for a real release:
 - PyInstaller must run on the target OS; a Windows exe needs a
   Windows build (CI matrix job per platform).
 
-## Prototype notes (what is on this branch)
+## What is on this branch
 
-`seeqret/gui/` implements phase 1 against a live vault (set `SEEQRET`
-as usual, then `python -m seeqret.gui`). What it demonstrates:
+`seeqret/gui/` implements all eight views against a live vault
+(`python -m seeqret.gui`; vault resolution is registry-default first,
+then `SEEQRET`, like jseeqret):
 
-- the facade pattern -- zero core changes were needed for phase 1;
-- jseeqret's look (sidebar, palette, masked values, copy feedback);
-- `QTableView` + `QSortFilterProxyModel` giving sort + glob filter for
-  free, replacing jseeqret's hand-rolled table sorting/filtering;
-- add/edit/delete secret dialogs with the same immutable-identity rule.
+Dashboard, Secrets (glob filter, sort, masked values, reveal, copy,
+add/edit/delete), Users (add/delete, owner protection, Slack link
+ceremony), Export (grouped recipients, serializer, system toggle,
+clipboard/file/Slack), Import (paste/file, two-phase conflict table
+with bulk keep-mine/take-theirs/take-newer), Slack (status card,
+OAuth login + channel pick, MFA attest, transport selftest, logout),
+Onboarding (invite, poll, fingerprint-gated approve), Introduction.
 
-Not built (stubs): Export, Import, Onboarding, vault create/switch.
+The sidebar hosts the vault switcher (create/register/switch); an
+uninitialized start lands on a first-run view with vault creation.
 
 Screenshots (against a throwaway demo vault):
 
 ![Secrets view](gui_secrets.png)
 
 ![Dashboard](gui_dashboard.png)
+
+![Import with conflict resolution](gui_import.png)
+
+![Export](gui_export.png)
+
+![Slack](gui_slack.png)
+
+![Onboarding](gui_onboarding.png)
 
 ![Users](gui_users.png)
 

@@ -28,6 +28,8 @@ SLACK_KEYS = {
     'channel_id':          'slack.channel_id',
     'channel_name':        'slack.channel_name',
     'last_seen_ts':        'slack.last_seen_ts',
+    'onboard_last_seen_ts': 'slack.onboard_last_seen_ts',
+    'onboard_user_last_seen_ts': 'slack.onboard_user_last_seen_ts',
     'connected_apps_hash': 'slack.connected_apps_hash',
     'token_created_at':    'slack.token_created_at',
     'mfa_attested_at':     'slack.mfa_attested_at',
