@@ -215,6 +215,41 @@ def test_env_with_quoted_constant():
         assert "SINGLE_QUOTED=\"hello\"" in env_content
 
 
+def test_env_quoted_constant_with_colons():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        # A quoted value containing colons is a constant, not a filter
+        with open('env.template', 'w') as f:
+            f.write('BETTER_AUTH_URL="http://localhost:5176"\n')
+            f.write("SINGLE_QUOTED_URL='https://example.com:8080/path'\n")
+            f.write('LOCAL_FOO=:dev:FOO\n')
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert result.exit_code == 0
+        env_content = open('.env').read()
+        assert 'BETTER_AUTH_URL="http://localhost:5176"' in env_content
+        assert 'SINGLE_QUOTED_URL="https://example.com:8080/path"' in env_content
+        # Unquoted rhs with colons is still rename-filter syntax
+        assert 'LOCAL_FOO="BAR"' in env_content
+
+
 def test_env_constant_duplicate():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():

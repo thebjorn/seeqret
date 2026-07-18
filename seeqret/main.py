@@ -390,8 +390,9 @@ def env(ctx):
       NAME=value          Output NAME="value" directly in .env
 
     \b
-    Note: if the right side of = contains a colon, it is treated as a
-    filter. Otherwise it is treated as a constant value.
+    Note: a quoted right side is always a constant value. An unquoted
+    right side containing a colon is treated as a filter, otherwise
+    as a constant value.
 
     \b
     Glob patterns (* and ?) are supported in all fields.
@@ -409,6 +410,8 @@ def env(ctx):
       # Constant values (no vault lookup)
       NODE_ENV=production
       DEBUG=false
+      # Quote values containing colons to force constant interpretation
+      BETTER_AUTH_URL="http://localhost:5176"
     """
     if not os.path.exists('env.template'):
         click.secho("Error: No env.template file found in the current directory.", fg='red')
@@ -456,14 +459,16 @@ def env(ctx):
             continue
         if '=' in stripped:
             output_name, _, rhs = stripped.partition('=')
-            if ':' in rhs:
+            if len(rhs) >= 2 and rhs[0] == rhs[-1] and rhs[0] in ('"', "'"):
+                # Quoted value is always a constant, even if it contains
+                # colons (e.g. URL="http://localhost:5176"). The quotes are
+                # stripped since the serializer adds its own.
+                constants.append((output_name, rhs[1:-1]))
+            elif ':' in rhs:
                 # Rename syntax: OUTPUT_NAME=app:env:key
                 filters.append((output_name, FilterSpec(rhs)))
             else:
                 # Constant value: NAME=value
-                # Strip surrounding quotes if present (the serializer adds its own)
-                if len(rhs) >= 2 and rhs[0] == rhs[-1] and rhs[0] in ('"', "'"):
-                    rhs = rhs[1:-1]
                 constants.append((output_name, rhs))
         else:
             filters.append((None, FilterSpec(stripped)))
