@@ -31,7 +31,9 @@ class Secret:
                  type: str = 'str',
                  plaintext_value: str = None,
                  updated_at: int = None):
-        if not (value or plaintext_value):
+        # empty string is a valid value (e.g. NAME= constants in
+        # env.template), only None means "not provided".
+        if value is None and plaintext_value is None:
             raise Exception('value or plaintext_value is required')
         self.app: str = app
         self.env: str = env
@@ -41,7 +43,7 @@ class Secret:
         # nullable, advisory merge metadata carried by exports.
         self.updated_at = updated_at
         self._value = value
-        if plaintext_value:
+        if plaintext_value is not None:
             self.value = plaintext_value
 
     def __str__(self):

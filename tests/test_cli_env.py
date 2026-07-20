@@ -190,6 +190,30 @@ def test_env_with_constant():
         assert 'DEBUG="false"' in env_content
 
 
+def test_env_with_empty_constant():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        # An empty constant (NAME= or NAME="") is a valid empty value
+        with open('env.template', 'w') as f:
+            f.write('SHADOW_CUSTOMER_IDS=\n')
+            f.write('EMPTY_QUOTED=""\n')
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert result.exit_code == 0
+        env_content = open('.env').read()
+        assert 'SHADOW_CUSTOMER_IDS=""' in env_content
+        assert 'EMPTY_QUOTED=""' in env_content
+
+
 def test_env_with_quoted_constant():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
