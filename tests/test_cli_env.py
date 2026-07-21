@@ -46,6 +46,53 @@ def test_env():
         assert 'FOO="BAR"' in open('.env').read()
 
 
+def test_list_env_flag():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(key, [
+            'FOO', 'BAR',
+            '--app=myapp',
+            '--env=dev'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        result = runner.invoke(key, [
+            'BAZ', 'QUX',
+            '--app=myapp',
+            '--env=prod'
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        # --env outputs all secrets in .env format
+        result = runner.invoke(list, ['--env'])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert 'FOO="BAR"' in result.output
+        assert 'BAZ="QUX"' in result.output
+
+        # --env combines with a filterspec
+        result = runner.invoke(list, [':dev:', '--env'])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+        assert 'FOO="BAR"' in result.output
+        assert 'BAZ="QUX"' not in result.output
+
+        # no matches leaves stdout empty (message goes to stderr)
+        result = runner.invoke(list, [':nomatch:', '--env'])
+        assert result.exit_code == 0
+        assert 'FOO' not in result.output
+
+
 def test_parse_version():
     assert parse_version('0.2.2') == (0, 2, 2)
     assert parse_version('1.0') == (1, 0)

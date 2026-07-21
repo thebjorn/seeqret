@@ -174,7 +174,9 @@ def upgrade():
 @click.argument('filterspec', default='')
 @click.option('-f', '--filter', default='', show_default=False,
               help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
-def list(filterspec, filter):
+@click.option('--env', 'env_format', is_flag=True,
+              help='output the secrets in .env file format')
+def list(filterspec, filter, env_format):
     """List the contents of the vault
 
     Optionally provide a FILTERSPEC to filter secrets (e.g. yerbu:prod:).
@@ -186,9 +188,14 @@ def list(filterspec, filter):
         fspec = FilterSpec(effective_filter)
         secrets = storage.fetch_secrets(**fspec.to_filterdict())
         if not secrets:
-            click.secho("No matching secrets found.")
+            # with --env the message goes to stderr, so redirected
+            # stdout remains a valid (empty) .env file
+            click.secho('No matching secrets found.', err=env_format)
             return
-        as_table("App,Env,Key,Value,Type", secrets)
+        if env_format:
+            click.echo(SERIALIZERS['env']().dumps(secrets, False))
+        else:
+            as_table("App,Env,Key,Value,Type", secrets)
 
 
 @cli.command()
