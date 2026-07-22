@@ -4,6 +4,7 @@
    (currently: Vercel projects via the ``vercel`` CLI).
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -18,8 +19,43 @@ from .storage.sqlite_storage import SqliteStorage
 VERCEL_TARGETS = ('production', 'preview', 'development')
 
 
+def _repo_json_covers(curdir) -> bool:
+    """Check for a monorepo-style Vercel link covering ``curdir``.
+
+       Newer Vercel CLIs (``vercel link`` inside a git repo) write a
+       single ``.vercel/repo.json`` at the repo root instead of a
+       per-directory ``.vercel/project.json``. The vercel CLI resolves
+       the project from the subdirectory it is invoked in, so pushing
+       works as long as ``curdir`` is one of the linked project
+       directories listed in repo.json.
+    """
+    curdir = os.path.abspath(curdir)
+    d = curdir
+    while True:
+        repo_file = os.path.join(d, '.vercel', 'repo.json')
+        if os.path.exists(repo_file):
+            try:
+                with open(repo_file) as f:
+                    repo = json.load(f)
+            except (OSError, ValueError):
+                return False
+            reldir = os.path.relpath(curdir, d).replace(os.sep, '/')
+            return any(
+                p.get('directory') == reldir
+                for p in repo.get('projects', [])
+            )
+        parent = os.path.dirname(d)
+        if parent == d:
+            return False
+        d = parent
+
+
 def _check_vercel_linked(ctx, curdir) -> str:
     """Verify ``vercel`` is on PATH and the current dir is a linked project.
+
+       Accepts either a per-directory link (``.vercel/project.json`` in
+       ``curdir``) or a monorepo link (``.vercel/repo.json`` in an
+       ancestor directory listing ``curdir`` as a project directory).
 
        Returns the resolved path to the ``vercel`` executable. On
        Windows ``vercel`` is typically a ``.cmd`` shim, and
@@ -34,10 +70,12 @@ def _check_vercel_linked(ctx, curdir) -> str:
         )
 
     project_file = os.path.join(curdir, '.vercel', 'project.json')
-    if not os.path.exists(project_file):
+    if not os.path.exists(project_file) and not _repo_json_covers(curdir):
         ctx.fail(
             f"No linked Vercel project found in {curdir} "
-            "(missing .vercel/project.json). Run `vercel link` first."
+            "(no .vercel/project.json here, and no ancestor "
+            ".vercel/repo.json lists this directory as a project). "
+            "Run `vercel link` from this directory first."
         )
     return vercel_exe
 
@@ -89,9 +127,10 @@ def push():
 @click.argument('filterspec', default='')
 @click.option('-f', '--filter', 'filter_', default='', show_default=False,
               help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
-@click.option('--target', default=','.join(VERCEL_TARGETS), show_default=True,
+@click.option('--target', required=True,
               help='Comma-separated Vercel environments to push to '
-                   '(production, preview, development).')
+                   '(production, preview, development). Required, so a '
+                   'push never hits an environment you did not name.')
 @click.option('--dry-run', is_flag=True,
               help='Show what would be pushed without making changes.')
 def vercel(ctx, filterspec, filter_, target, dry_run):
@@ -103,10 +142,10 @@ def vercel(ctx, filterspec, filter_, target, dry_run):
 
     \b
     Examples:
-        seeqret push vercel myapp:prod:*
-        seeqret push vercel --filter myapp:prod:DB_*
         seeqret push vercel myapp:prod:* --target production
-        seeqret push vercel myapp:prod:* --dry-run
+        seeqret push vercel --filter myapp:prod:DB_* --target production
+        seeqret push vercel myapp:prod:* --target production,preview
+        seeqret push vercel myapp:prod:* --target production --dry-run
     """
     effective_filter = filter_ or filterspec or '*'
     curdir = ctx.obj.get('curdir') if ctx.obj else os.getcwd()

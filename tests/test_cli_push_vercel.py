@@ -1,3 +1,4 @@
+import json
 import os
 from unittest.mock import patch, MagicMock
 
@@ -35,6 +36,17 @@ def _link_vercel():
         f.write('{"projectId": "test", "orgId": "test"}\n')
 
 
+def _link_vercel_repo(directories):
+    """Pretend the current dir is a monorepo root linked via repo.json."""
+    os.makedirs('.vercel', exist_ok=True)
+    projects = [
+        {'id': f'prj_{i}', 'name': d.split("/")[-1], 'directory': d}
+        for i, d in enumerate(directories)
+    ]
+    with open(os.path.join('.vercel', 'repo.json'), 'w') as f:
+        json.dump({'remoteName': 'origin', 'projects': projects}, f)
+
+
 def test_push_vercel_dry_run_skips_link_check():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():
@@ -42,7 +54,8 @@ def test_push_vercel_dry_run_skips_link_check():
         _add_secret(runner, 'DB_PASS', 'secret123')
 
         result = runner.invoke(
-            push_vercel, ['myapp:prod:DB_PASS', '--dry-run'],
+            push_vercel,
+            ['myapp:prod:DB_PASS', '--dry-run', '--target=production'],
         )
         if result.exit_code != 0:
             print_result(result)
@@ -57,7 +70,8 @@ def test_push_vercel_no_match():
         _init_vault(runner)
 
         result = runner.invoke(
-            push_vercel, ['nonexistent:app:KEY', '--dry-run'],
+            push_vercel,
+            ['nonexistent:app:KEY', '--dry-run', '--target=production'],
         )
         assert result.exit_code != 0
         assert 'No secrets found' in result.output
@@ -70,9 +84,28 @@ def test_push_vercel_duplicate_keys():
         _add_secret(runner, 'API_KEY', 'val1', app='app1', env='dev')
         _add_secret(runner, 'API_KEY', 'val2', app='app2', env='dev')
 
-        result = runner.invoke(push_vercel, ['::API_KEY', '--dry-run'])
+        result = runner.invoke(
+            push_vercel, ['::API_KEY', '--dry-run', '--target=production'],
+        )
         assert result.exit_code != 0
         assert 'Duplicate key' in result.output
+
+
+def test_push_vercel_target_is_required():
+    """Omitting --target must fail instead of pushing to all envs."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel()
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run') as mock_run:
+            result = runner.invoke(push_vercel, ['myapp:prod:DB_PASS'])
+
+        assert result.exit_code != 0
+        assert '--target' in result.output
+        mock_run.assert_not_called()
 
 
 def test_push_vercel_unknown_target():
@@ -96,7 +129,56 @@ def test_push_vercel_requires_linked_project():
         _add_secret(runner, 'DB_PASS', 'secret123')
 
         with patch('shutil.which', return_value='/usr/bin/vercel'):
-            result = runner.invoke(push_vercel, ['myapp:prod:DB_PASS'])
+            result = runner.invoke(
+                push_vercel, ['myapp:prod:DB_PASS', '--target=production'],
+            )
+
+        assert result.exit_code != 0
+        assert 'No linked Vercel project' in result.output
+
+
+def test_push_vercel_repo_json_link():
+    """A monorepo .vercel/repo.json in an ancestor dir counts as linked."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel_repo(['apps/myapp', 'apps/other'])
+        appdir = os.path.join(os.getcwd(), 'apps', 'myapp')
+        os.makedirs(appdir)
+
+        ok = MagicMock(returncode=0, stdout='', stderr='')
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run', return_value=ok):
+            result = runner.invoke(
+                push_vercel,
+                ['myapp:prod:DB_PASS', '--target=production'],
+                obj={'curdir': appdir},
+            )
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert 'pushed DB_PASS' in result.output
+
+
+def test_push_vercel_repo_json_unlisted_dir():
+    """repo.json that doesn't list the current dir is not a link."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel_repo(['apps/other'])
+        appdir = os.path.join(os.getcwd(), 'apps', 'myapp')
+        os.makedirs(appdir)
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'):
+            result = runner.invoke(
+                push_vercel,
+                ['myapp:prod:DB_PASS', '--target=production'],
+                obj={'curdir': appdir},
+            )
 
         assert result.exit_code != 0
         assert 'No linked Vercel project' in result.output
@@ -110,7 +192,9 @@ def test_push_vercel_requires_cli_installed():
         _link_vercel()
 
         with patch('shutil.which', return_value=None):
-            result = runner.invoke(push_vercel, ['myapp:prod:DB_PASS'])
+            result = runner.invoke(
+                push_vercel, ['myapp:prod:DB_PASS', '--target=production'],
+            )
 
         assert result.exit_code != 0
         assert 'vercel` CLI was not found' in result.output
@@ -198,7 +282,8 @@ def test_push_vercel_filter_option():
 
         result = runner.invoke(
             push_vercel,
-            ['--filter', 'myapp:prod:DB_PASS', '--dry-run'],
+            ['--filter', 'myapp:prod:DB_PASS', '--dry-run',
+             '--target=production'],
         )
         if result.exit_code != 0:
             print_result(result)
