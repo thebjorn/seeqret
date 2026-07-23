@@ -18,6 +18,7 @@ from .filterspec import FilterSpec
 from .run_utils import seeqret_dir
 from .seeqret_transfer import resolve_user
 from .seeqrypt.nacl_backend import load_private_key
+from .serializers.envelope import MESSAGE_KINDS, parse_envelope
 from .serializers.serializer import SERIALIZERS
 from .storage.sqlite_storage import SqliteStorage
 
@@ -518,6 +519,21 @@ def receive(ctx, via, watch, interval):
                 self_user_id=snap['user_id'],
                 oldest_ts=oldest_ts,
             ):
+                # Typed envelopes (jseeqret onboarding traffic) travel
+                # over the same pipe. Only `secret` blobs are ours --
+                # other kinds belong to their own pollers and must be
+                # left untouched (not imported, not deleted, cursor
+                # not advanced past them). A frame that is not JSON at
+                # all is not ours either. Feeding these to the
+                # json-crypt serializer crashed receive (an envelope
+                # has no `secrets` array).
+                try:
+                    env = parse_envelope(msg['ciphertext'].decode('utf-8'))
+                except (UnicodeDecodeError, ValueError):
+                    continue
+                if env['kind'] != MESSAGE_KINDS['secret']:
+                    continue
+
                 slack_user = client.users_info(msg['sender_user_id'])
                 sender = find_user_by_slack_handle(
                     storage, slack_user.get('name'),
@@ -536,10 +552,11 @@ def receive(ctx, via, watch, interval):
                     receiver=storage.fetch_admin(),
                     receiver_private_key=receiver_private,
                 )
-                text = msg['ciphertext'].decode('utf-8')
-                secrets = serializer.load(text)
+                secrets = serializer.load(json.dumps(env['payload']))
                 for secret in secrets:
-                    storage.add_secret(secret)
+                    # Same semantics as `seeqret load` (file import):
+                    # an existing (app, env, key) row is updated.
+                    storage.upsert_secret(secret)
                     imported += 1
 
                 delete_thread(
