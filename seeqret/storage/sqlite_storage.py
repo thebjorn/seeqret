@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 from ..run_utils import get_seeqret_dir
 
-from ..models import User, Secret
+from ..models import User, Secret, Remote
 from .storage import Storage
 from logging import getLogger
 
@@ -315,6 +315,93 @@ class SqliteStorage(Storage):
                 " where key like ? order by key",
                 (prefix + '%',),
             ).fetchall()
+
+    # ---- SSH remote targets ------------------------------------------
+
+    def _has_remotes_table(self, cn) -> bool:
+        """Cached check for the presence of the migration v7 table,
+           so the tool keeps working against a vault that has not run
+           ``seeqret upgrade`` yet (mirrors ``_has_name_column``).
+        """
+        if getattr(self, '_remotes_present', None) is None:
+            row = cn.execute(
+                "select count(*) from sqlite_master"
+                " where type='table' and name='remotes'"
+            ).fetchone()
+            self._remotes_present = bool(row and row[0])
+        return self._remotes_present
+
+    def upsert_remote(self, remote: Remote):
+        """Insert an ssh remote, or overwrite an existing alias.
+        """
+        now = int(time.time())
+        with self.connection() as cn:
+            if not self._has_remotes_table(cn):
+                raise RuntimeError(
+                    "The remotes table is missing -- "
+                    "run `seeqret upgrade` first."
+                )
+            cn.execute("""
+                insert into remotes (alias, username, hostname,
+                                     set_cmd, get_cmd,
+                                     created_at, updated_at)
+                values (?, ?, ?, ?, ?, ?, ?)
+                on conflict(alias) do update set
+                    username = excluded.username,
+                    hostname = excluded.hostname,
+                    set_cmd = excluded.set_cmd,
+                    get_cmd = excluded.get_cmd,
+                    updated_at = excluded.updated_at
+            """, (
+                remote.alias,
+                remote.username,
+                remote.hostname,
+                remote.set_cmd,
+                remote.get_cmd,
+                now,
+                now,
+            ))
+            cn.commit()
+
+    def fetch_remote(self, alias: str) -> Remote | None:
+        """Fetch a single ssh remote by alias (None if not found).
+        """
+        with self.connection() as cn:
+            if not self._has_remotes_table(cn):
+                return None
+            rec = cn.execute("""
+                select alias, username, hostname, set_cmd, get_cmd
+                from remotes
+                where alias = ?
+            """, (alias,)).fetchone()
+        if rec is None:
+            return None
+        return Remote(*rec)
+
+    def fetch_remotes(self) -> list[Remote]:
+        """Fetch all ssh remotes, ordered by alias.
+        """
+        with self.connection() as cn:
+            if not self._has_remotes_table(cn):
+                return []
+            recs = cn.execute("""
+                select alias, username, hostname, set_cmd, get_cmd
+                from remotes
+                order by alias
+            """).fetchall()
+        return [Remote(*rec) for rec in recs]
+
+    def remove_remote(self, alias: str) -> int:
+        """Delete an ssh remote by alias; returns rows deleted.
+        """
+        with self.connection() as cn:
+            if not self._has_remotes_table(cn):
+                return 0
+            cur = cn.execute(
+                "delete from remotes where alias = ?", (alias,),
+            )
+            cn.commit()
+            return cur.rowcount
 
     def _has_secret_updated_at(self, cn) -> bool:
         """Cached check for the presence of the migration v6 column,

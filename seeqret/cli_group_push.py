@@ -11,9 +11,7 @@ import subprocess
 
 import click
 
-from .filterspec import FilterSpec
-from .run_utils import seeqret_dir
-from .storage.sqlite_storage import SqliteStorage
+from .cli_remote_ssh import PushGroup, _fetch_filtered_secrets
 
 
 VERCEL_TARGETS = ('production', 'preview', 'development')
@@ -129,9 +127,14 @@ def _push_one(vercel_exe: str, key: str, value: str,
     return True, ''
 
 
-@click.group('push')
+@click.group('push', cls=PushGroup)
 def push():
-    """Push secrets from the vault to external systems."""
+    """Push secrets from the vault to external systems.
+
+    Besides the built-in targets below, any ssh remote registered
+    with `seeqret remote add <alias> ...` is available as
+    `seeqret push <alias>`.
+    """
     pass
 
 
@@ -160,7 +163,6 @@ def vercel(ctx, filterspec, filter_, target, dry_run):
         seeqret push vercel myapp:prod:* --target production,preview
         seeqret push vercel myapp:prod:* --target production --dry-run
     """
-    effective_filter = filter_ or filterspec or '*'
     curdir = ctx.obj.get('curdir') if ctx.obj else os.getcwd()
     curdir = curdir or os.getcwd()
 
@@ -170,23 +172,7 @@ def vercel(ctx, filterspec, filter_, target, dry_run):
     if not dry_run:
         vercel_exe = _check_vercel_linked(ctx, curdir)
 
-    with seeqret_dir():
-        storage = SqliteStorage()
-        fspec = FilterSpec(effective_filter)
-        secrets = storage.fetch_secrets(**fspec.to_filterdict())
-
-    if not secrets:
-        ctx.fail(f"No secrets found for {effective_filter}")
-
-    keys = {}
-    for secret in secrets:
-        if secret.key in keys:
-            ctx.fail(
-                f"Duplicate key: {secret.key} "
-                f"(found in {keys[secret.key]} and "
-                f"{secret.app}:{secret.env})"
-            )
-        keys[secret.key] = f"{secret.app}:{secret.env}"
+    secrets = _fetch_filtered_secrets(ctx, filterspec, filter_)
 
     click.echo(
         f"Pushing {len(secrets)} secret(s) to Vercel "

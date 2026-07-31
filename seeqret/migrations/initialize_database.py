@@ -10,6 +10,7 @@ from . import (
     db_v_004,
     db_v_005,
     db_v_006,
+    db_v_007,
 )
 
 
@@ -30,4 +31,6 @@ def init_db(vault_dir, user, email):
                 db_v_005.init_db_v_005(vault_dir)
             if cur < 6:
                 db_v_006.init_db_v_006(vault_dir)
+            if cur < 7:
+                db_v_007.init_db_v_007(vault_dir)
         cn.close()

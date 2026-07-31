@@ -50,14 +50,26 @@ def test_slack_columns_added_to_users():
                 cn.close()
 
 
-def test_migrations_version_is_6():
+def test_migrations_version_is_7():
     runner = CliRunner(env=dict(TESTING='TRUE'))
     with runner.isolated_filesystem():
         _init_vault(runner)
         with seeqret_dir():
             cn = sqlite3.connect('seeqrets.db')
             try:
-                assert current_version(cn) == 6
+                assert current_version(cn) == 7
+            finally:
+                cn.close()
+
+
+def test_remotes_table_created_v7():
+    runner = CliRunner(env=dict(TESTING='TRUE'))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        with seeqret_dir():
+            cn = sqlite3.connect('seeqrets.db')
+            try:
+                assert table_exists(cn, 'remotes')
             finally:
                 cn.close()
 

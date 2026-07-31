@@ -29,6 +29,8 @@ from .cli_group_add import key as add_key, text as add_text
 from .cli_group_server import init as server_init
 from .cli_group_slack import slack as slack_group, send as send_cmd, receive as receive_cmd
 from .cli_group_push import push as push_group
+from .cli_group_verify import verify as verify_group
+from .cli_group_remote import remote as remote_group
 import logging
 
 
@@ -970,3 +972,11 @@ cli.add_command(receive_cmd)
 # ---- push transport ---------------------------------------------------
 
 cli.add_command(push_group)
+
+# ---- verify -----------------------------------------------------------
+
+cli.add_command(verify_group)
+
+# ---- ssh remotes ------------------------------------------------------
+
+cli.add_command(remote_group)
