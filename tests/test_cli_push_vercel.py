@@ -64,6 +64,28 @@ def test_push_vercel_dry_run_skips_link_check():
         assert 'production' in result.output
 
 
+def test_push_vercel_dry_run_prints_commands():
+    """Dry-run shows the vercel command lines, but never the value."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+
+        result = runner.invoke(
+            push_vercel,
+            ['myapp:prod:DB_PASS', '--dry-run',
+             '--target=production,preview'],
+        )
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert 'vercel env rm DB_PASS production --yes' in result.output
+        assert 'vercel env add DB_PASS production' in result.output
+        assert 'vercel env rm DB_PASS preview --yes' in result.output
+        assert 'vercel env add DB_PASS preview' in result.output
+        assert 'secret123' not in result.output
+
+
 def test_push_vercel_no_match():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():

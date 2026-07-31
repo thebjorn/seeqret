@@ -91,6 +91,18 @@ def _parse_targets(target: str) -> list[str]:
     return targets
 
 
+def _vercel_cmds(vercel_exe: str, key: str,
+                 tgt: str) -> tuple[list[str], list[str]]:
+    """The (rm, add) command lines used to push ``key`` to ``tgt``.
+
+       The secret value is never part of the command line;
+       ``vercel env add`` reads it from stdin.
+    """
+    rm_cmd = [vercel_exe, 'env', 'rm', key, tgt, '--yes']
+    add_cmd = [vercel_exe, 'env', 'add', key, tgt]
+    return rm_cmd, add_cmd
+
+
 def _push_one(vercel_exe: str, key: str, value: str,
               targets: list[str], cwd: str) -> tuple[bool, str]:
     """Push a single secret to Vercel, overwriting any existing value.
@@ -101,13 +113,14 @@ def _push_one(vercel_exe: str, key: str, value: str,
        exist yet); failures are ignored.
     """
     for tgt in targets:
+        rm_cmd, add_cmd = _vercel_cmds(vercel_exe, key, tgt)
         subprocess.run(
-            [vercel_exe, 'env', 'rm', key, tgt, '--yes'],
+            rm_cmd,
             capture_output=True, text=True, cwd=cwd,
         )
 
         add = subprocess.run(
-            [vercel_exe, 'env', 'add', key, tgt],
+            add_cmd,
             input=value, capture_output=True, text=True, cwd=cwd,
         )
         if add.returncode != 0:
@@ -181,8 +194,14 @@ def vercel(ctx, filterspec, filter_, target, dry_run):
     )
 
     if dry_run:
+        # The link check is skipped in dry-run mode, so vercel_exe is
+        # not resolved; show the commands as the user would type them.
         for secret in secrets:
             click.echo(f"  would push {secret.key} -> {', '.join(targets)}")
+            for tgt in targets:
+                rm_cmd, add_cmd = _vercel_cmds('vercel', secret.key, tgt)
+                click.echo(f"    {' '.join(rm_cmd)}")
+                click.echo(f"    {' '.join(add_cmd)}  (value on stdin)")
         return
 
     pushed = 0
