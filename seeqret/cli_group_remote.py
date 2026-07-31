@@ -49,7 +49,7 @@ def add(ctx, alias, userhost, set_cmd, get_cmd):
     \b
     Example:
         seeqret remote add myhost myuser@myhost.example.com \\
-            --set "source /srv/venv/myvenv/bin/activate && myvault set-secret --key {key} --stdin" \\
+            --set ". /srv/venv/myvenv/bin/activate && myvault set-secret --key {key} --stdin" \\
             --get "... myvault get-secret --key {key} --stdout"
 
     Afterwards `seeqret push myhost myapp:prod:FOO` runs the set

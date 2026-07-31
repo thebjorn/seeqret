@@ -1,6 +1,6 @@
 """Migration 007 -- SSH remote targets.
 
-   ``remotes`` maps a short alias (e.g. ``fischer``) to an ssh
+   ``remotes`` maps a short alias (e.g. ``prod``) to an ssh
    identity (``username@hostname``) plus the command templates used to
    push and verify secrets on that host. The templates live in the
    vault -- not in the code -- so seeqret has no intrinsic knowledge of

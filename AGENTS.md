@@ -88,3 +88,9 @@ Tests use Click's `CliRunner` for CLI testing. Test utilities in `tests/clirunne
 
 
 **IMPORTANT** always run `pytest` and `flake8` before committing code.
+
+**IMPORTANT** always run 
+```shell
+flake8 --max-line-length=100 seeqret
+```
+before pushing code, otherwise the CI/CD pipeline will fail.
