@@ -16,6 +16,11 @@ from .cli_remote_ssh import PushGroup, _fetch_filtered_secrets
 
 VERCEL_TARGETS = ('production', 'preview', 'development')
 
+TARGET_ALIASES = {
+    'dev': 'development',
+    'prod': 'production',
+}
+
 
 def _repo_json_covers(curdir) -> bool:
     """Check for a monorepo-style Vercel link covering ``curdir``.
@@ -79,13 +84,31 @@ def _check_vercel_linked(ctx, curdir) -> str:
 
 
 def _parse_targets(target: str) -> list[str]:
-    targets = [t.strip() for t in target.split(',') if t.strip()]
-    unknown = [t for t in targets if t not in VERCEL_TARGETS]
+    """Split a comma-separated ``--target`` value into canonical names.
+
+       ``prod`` and ``dev`` are accepted as aliases, matching
+       ``seeqret verify vercel --target``. Expanding an alias can
+       collide with a name that was also spelled out (``prod,production``
+       is one target, not two), so duplicates are dropped -- pushing the
+       same secret to the same environment twice is pointless work.
+    """
+    names = [t.strip() for t in target.split(',') if t.strip()]
+    unknown = [
+        t for t in names
+        if TARGET_ALIASES.get(t, t) not in VERCEL_TARGETS
+    ]
     if unknown:
         raise click.ClickException(
             f"Unknown Vercel target(s): {', '.join(unknown)}. "
-            f"Valid choices: {', '.join(VERCEL_TARGETS)}."
+            f"Valid choices: {', '.join(VERCEL_TARGETS)} "
+            f"({', '.join(TARGET_ALIASES)} are accepted as aliases)."
         )
+
+    targets = []
+    for name in names:
+        canonical = TARGET_ALIASES.get(name, name)
+        if canonical not in targets:
+            targets.append(canonical)
     return targets
 
 
@@ -95,10 +118,26 @@ def _vercel_cmds(vercel_exe: str, key: str,
 
        The secret value is never part of the command line;
        ``vercel env add`` reads it from stdin.
+
+       ``preview`` needs the optional git-branch positional passed
+       explicitly. ``vercel env add KEY preview`` asks "which Git
+       branch? (leave empty for all Preview branches)", and since the
+       value is piped on stdin that prompt reads EOF -- the CLI then
+       exits 0 without writing anything, so the push silently looks
+       like it succeeded. An empty branch is the "all Preview
+       branches" answer, and is what ``vercel env pull --environment
+       preview`` (and therefore ``seeqret verify``) reads back.
     """
     rm_cmd = [vercel_exe, 'env', 'rm', key, tgt, '--yes']
     add_cmd = [vercel_exe, 'env', 'add', key, tgt]
+    if tgt == 'preview':
+        add_cmd.append('')
     return rm_cmd, add_cmd
+
+
+def _fmt_cmd(cmd: list[str]) -> str:
+    """Render a command line for display, keeping empty args visible."""
+    return ' '.join(arg if arg else '""' for arg in cmd)
 
 
 def _push_one(vercel_exe: str, key: str, value: str,
@@ -145,8 +184,9 @@ def push():
               help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
 @click.option('--target', required=True,
               help='Comma-separated Vercel environments to push to '
-                   '(production, preview, development). Required, so a '
-                   'push never hits an environment you did not name.')
+                   '(production, preview, development; prod and dev '
+                   'are accepted as aliases). Required, so a push '
+                   'never hits an environment you did not name.')
 @click.option('--dry-run', is_flag=True,
               help='Show what would be pushed without making changes.')
 def vercel(ctx, filterspec, filter_, target, dry_run):
@@ -186,8 +226,8 @@ def vercel(ctx, filterspec, filter_, target, dry_run):
             click.echo(f"  would push {secret.key} -> {', '.join(targets)}")
             for tgt in targets:
                 rm_cmd, add_cmd = _vercel_cmds('vercel', secret.key, tgt)
-                click.echo(f"    {' '.join(rm_cmd)}")
-                click.echo(f"    {' '.join(add_cmd)}  (value on stdin)")
+                click.echo(f"    {_fmt_cmd(rm_cmd)}")
+                click.echo(f"    {_fmt_cmd(add_cmd)}  (value on stdin)")
         return
 
     pushed = 0

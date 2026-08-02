@@ -82,7 +82,7 @@ def test_push_vercel_dry_run_prints_commands():
         assert 'vercel env rm DB_PASS production --yes' in result.output
         assert 'vercel env add DB_PASS production' in result.output
         assert 'vercel env rm DB_PASS preview --yes' in result.output
-        assert 'vercel env add DB_PASS preview' in result.output
+        assert 'vercel env add DB_PASS preview ""' in result.output
         assert 'secret123' not in result.output
 
 
@@ -142,6 +142,51 @@ def test_push_vercel_unknown_target():
         )
         assert result.exit_code != 0
         assert 'Unknown Vercel target' in result.output
+        assert 'staging' in result.output
+
+
+def test_push_vercel_target_aliases():
+    """`prod`/`dev` mean the same here as in `seeqret verify vercel`."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+
+        result = runner.invoke(
+            push_vercel,
+            ['myapp:prod:DB_PASS', '--dry-run', '--target=prod,dev'],
+        )
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert 'Pushing 1 secret(s) to Vercel (production, development)' \
+            in result.output
+        assert 'vercel env add DB_PASS production' in result.output
+        assert 'vercel env add DB_PASS development' in result.output
+
+
+def test_push_vercel_target_alias_collapses_duplicate():
+    """`prod,production` is one target, not two rm+add cycles."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel()
+
+        ok = MagicMock(returncode=0, stdout='', stderr='')
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run', return_value=ok) as mock_run:
+            result = runner.invoke(
+                push_vercel,
+                ['myapp:prod:DB_PASS', '--target=prod,production'],
+            )
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        # one target -> rm + add, not 4 calls
+        assert len(mock_run.call_args_list) == 2
 
 
 def test_push_vercel_requires_linked_project():
@@ -293,6 +338,65 @@ def test_push_vercel_loops_per_target():
             for forbidden in ('production', 'preview', 'development'):
                 if args[env_pos] != forbidden:
                     assert forbidden not in tail
+
+
+def test_push_vercel_preview_passes_empty_git_branch():
+    """`vercel env add KEY preview` needs the git-branch positional.
+
+       Without it the CLI prompts for a branch, reads EOF from the
+       stdin we piped the value on, and exits 0 having written nothing
+       -- push reports success while the variable is never set.
+    """
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel()
+
+        ok = MagicMock(returncode=0, stdout='', stderr='')
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run', return_value=ok) as mock_run:
+            result = runner.invoke(
+                push_vercel, ['myapp:prod:DB_PASS', '--target=preview'],
+            )
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+
+        add_args = mock_run.call_args_list[1].args[0]
+        assert add_args == [
+            '/usr/bin/vercel', 'env', 'add', 'DB_PASS', 'preview', '',
+        ]
+
+
+def test_push_vercel_non_preview_has_no_git_branch():
+    """production/development take the value on stdin without prompting."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel()
+
+        ok = MagicMock(returncode=0, stdout='', stderr='')
+
+        for tgt in ('production', 'development'):
+            with patch('shutil.which', return_value='/usr/bin/vercel'), \
+                 patch('subprocess.run', return_value=ok) as mock_run:
+                result = runner.invoke(
+                    push_vercel,
+                    ['myapp:prod:DB_PASS', '--target=' + tgt],
+                )
+
+            if result.exit_code != 0:
+                print_result(result)
+            assert result.exit_code == 0
+
+            add_args = mock_run.call_args_list[1].args[0]
+            assert add_args == [
+                '/usr/bin/vercel', 'env', 'add', 'DB_PASS', tgt,
+            ]
 
 
 def test_push_vercel_filter_option():

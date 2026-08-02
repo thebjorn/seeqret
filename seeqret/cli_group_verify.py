@@ -11,14 +11,10 @@ import tempfile
 
 import click
 
-from .cli_group_push import VERCEL_TARGETS, _check_vercel_linked
+from .cli_group_push import (
+    TARGET_ALIASES, VERCEL_TARGETS, _check_vercel_linked,
+)
 from .cli_remote_ssh import VerifyGroup, _fetch_filtered_secrets
-
-
-TARGET_ALIASES = {
-    'dev': 'development',
-    'prod': 'production',
-}
 
 
 def _normalize_target(ctx, param, value):
