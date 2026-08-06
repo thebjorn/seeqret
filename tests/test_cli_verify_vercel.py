@@ -96,6 +96,84 @@ def test_verify_vercel_mismatch():
         assert 'different' not in result.output
 
 
+def test_verify_vercel_sensitive_unverifiable():
+    """Sensitive vars pull as empty strings; that is not a MISMATCH.
+
+       Vercel never returns the value of sensitive variables, so an
+       empty pulled value against a non-empty vault value is reported
+       as SENSITIVE (unverifiable) and does not fail the verify.
+    """
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _link_vercel()
+
+        pull = _fake_pull('DB_PASS=""\n')
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run', side_effect=pull):
+            result = runner.invoke(
+                verify_vercel,
+                ['myapp:prod:DB_PASS', '--target=production'],
+            )
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert 'SENSITIVE DB_PASS (unverifiable)' in result.output
+        assert 'MISMATCH' not in result.output
+        assert '1 sensitive secret(s) could not be verified' in result.output
+        assert 'secret123' not in result.output
+
+
+def test_verify_vercel_sensitive_does_not_mask_failures():
+    """A real MISMATCH still fails even when sensitive vars are present."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+        _add_secret(runner, 'API_KEY', 'apikey456')
+        _link_vercel()
+
+        pull = _fake_pull('DB_PASS=""\nAPI_KEY="different"\n')
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run', side_effect=pull):
+            result = runner.invoke(
+                verify_vercel,
+                ['myapp:prod:*', '--target=production'],
+            )
+
+        assert result.exit_code != 0
+        assert 'SENSITIVE DB_PASS (unverifiable)' in result.output
+        assert 'MISMATCH API_KEY' in result.output
+
+
+def test_verify_vercel_empty_vault_value_is_ok():
+    """An empty vault value matching an empty pull is ok, not SENSITIVE."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'EMPTY_FLAG', '')
+        _link_vercel()
+
+        pull = _fake_pull('EMPTY_FLAG=""\n')
+
+        with patch('shutil.which', return_value='/usr/bin/vercel'), \
+             patch('subprocess.run', side_effect=pull):
+            result = runner.invoke(
+                verify_vercel,
+                ['myapp:prod:EMPTY_FLAG', '--target=production'],
+            )
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert 'ok' in result.output
+        assert 'SENSITIVE' not in result.output
+
+
 def test_verify_vercel_missing():
     runner = CliRunner(env=dict(TESTING="TRUE"))
     with runner.isolated_filesystem():

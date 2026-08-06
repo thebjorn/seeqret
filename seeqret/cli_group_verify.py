@@ -102,7 +102,8 @@ def verify():
 @click.pass_context
 @click.argument('filterspec', default='')
 @click.option('-f', '--filter', 'filter_', default='', show_default=False,
-              help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
+              help='filterspec (see '
+                   'https://thebjorn.github.io/seeqret/filter-strings/)')
 @click.option('--target', default='development', show_default=True,
               callback=_normalize_target,
               help='Vercel environment to verify against '
@@ -113,8 +114,13 @@ def vercel(ctx, filterspec, filter_, target):
 
     Pulls the current values from Vercel with `vercel env pull` into a
     temp file, compares them to the vault values, then removes the temp
-    file. Only key names and ok/MISSING/MISMATCH are printed -- never
-    the values themselves.
+    file. Only key names and ok/MISSING/MISMATCH/SENSITIVE are printed
+    -- never the values themselves.
+
+    Vercel never returns the value of *sensitive* variables (`env pull`
+    writes them as empty strings), so a secret that pulls as empty while
+    the vault value is non-empty is reported as SENSITIVE (unverifiable)
+    rather than a MISMATCH, and does not count as a failure.
 
     \b
     Examples:
@@ -136,6 +142,7 @@ def vercel(ctx, filterspec, filter_, target):
 
     ok = 0
     failed = 0
+    sensitive = 0
     for secret in secrets:
         pulled = env.get(secret.key)
         if pulled is None:
@@ -144,11 +151,26 @@ def vercel(ctx, filterspec, filter_, target):
         elif pulled == secret.value:
             click.secho(f"  ok       {secret.key}", fg='green')
             ok += 1
+        elif pulled == '':
+            # Sensitive variables always pull as empty strings, so an
+            # empty pull against a non-empty vault value is unverifiable
+            # rather than a mismatch (empty vault values compare equal
+            # above and never reach this branch).
+            click.secho(
+                f"  SENSITIVE {secret.key} (unverifiable)", fg='yellow'
+            )
+            sensitive += 1
         else:
             click.secho(f"  MISMATCH {secret.key}", fg='red')
             failed += 1
 
     click.echo()
+    if sensitive:
+        click.secho(
+            f"{sensitive} sensitive secret(s) could not be verified "
+            "(Vercel does not return sensitive values).",
+            fg='yellow',
+        )
     if failed:
         click.secho(
             f"Verified {ok}, failed {failed}.",
