@@ -156,10 +156,11 @@ seeqret receive --via slack [--watch] [--interval <s>]
 
 1. Bind a `http.server.HTTPServer` to `('127.0.0.1', 0)` to grab an
    ephemeral port.
-2. Build the authorize URL with PKCE `code_challenge` and
-   `redirect_uri=http://127.0.0.1:<port>/callback`.
-3. `webbrowser.open(authorize_url)` and block on the single-request
-   handler until Slack redirects back with `code`.
+2. Build the authorize URL with PKCE `code_challenge`, a registered HTTPS
+   `redirect_uri`, and the ephemeral loopback port encoded in `state`.
+3. `webbrowser.open(authorize_url)` and block on the single-request handler.
+   The HTTPS callback page forwards Slack's response to
+   `http://127.0.0.1:<port>/callback`.
 4. Exchange `code` + `code_verifier` via `oauth.v2.access` for a User
    token. Tokens are stored Fernet-encrypted in `kv`.
 5. `auth.test` -> store `team_id`, `team_name`, `user_id`.
@@ -190,9 +191,9 @@ Public keys are never fetched from Slack profiles or pinned messages.
 
 ### For the seeqret maintainer (one-time)
 
-Same as the jseeqret plan: the Slack app is pre-registered and its
-Client ID (plus a non-sensitive Client Secret used in the PKCE user-token
-flow) is baked into the Python package. Scopes are **User Token Scopes**
+Same as the jseeqret plan: the Slack app is pre-registered and its public
+Client ID is baked into the Python package. PKCE authenticates the token
+exchange without shipping a Client Secret. Scopes are **User Token Scopes**
 only:
 
 - `channels:history`, `channels:read`
@@ -200,8 +201,8 @@ only:
 - `chat:write`, `chat:write:user`
 - `users:read`, `users:read.email`
 
-Redirect URL: `http://127.0.0.1/callback`. No Socket Mode, no
-App-Level tokens.
+Redirect URL: `https://www.norsktest.no/jseeqret/oauth/callback.html`. No
+Socket Mode or App-Level tokens.
 
 Because jseeqret and Python seeqret ship the same Slack app, **only one
 app needs to be registered total**. Both CLIs use the same Client ID.

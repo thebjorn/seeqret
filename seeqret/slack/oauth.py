@@ -4,8 +4,9 @@
      1. Generate a PKCE code verifier and challenge.
      2. Bind a one-shot http server on ``127.0.0.1:<ephemeral>``.
      3. Open the user's browser at ``slack.com/oauth/v2/authorize``
-        with a redirect_uri pointing at our loopback port.
-     4. Wait for Slack to redirect back with ``?code=...``.
+        with a registered HTTPS redirect URI.
+     4. Wait for the HTTPS callback page to forward Slack's response
+        to the loopback port encoded in ``state``.
      5. Exchange the code and verifier for a user token via
         ``oauth.v2.access``.
      6. Shut down the server and return the token.
@@ -28,12 +29,19 @@ from urllib.parse import urlencode, urlparse, parse_qs
 from slack_sdk import WebClient
 
 
-# SLACK_CLIENT_ID is a placeholder. The real maintainer should set
-# the env var or replace the default string before releasing a build
-# with the Client ID of the published seeqret Slack app.
+# seeqret and jseeqret use the same public Slack app. A Client ID is an
+# identifier exposed in every authorize URL, not a secret. Keep the env var
+# override for local development and alternate app registrations.
 SLACK_CLIENT_ID = os.environ.get(
     'SEEQRET_SLACK_CLIENT_ID',
-    '0000000000.0000000000000',
+    '25158173844.10894054396469',
+)
+
+# Slack requires a registered HTTPS redirect URI. This page forwards the
+# authorization response to the ephemeral loopback port encoded in ``state``.
+SLACK_REDIRECT_URL = os.environ.get(
+    'SEEQRET_SLACK_REDIRECT_URL',
+    'https://www.norsktest.no/jseeqret/oauth/callback.html',
 )
 
 SLACK_USER_SCOPES = ','.join([
@@ -112,13 +120,14 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
 
         qs = parse_qs(parsed.query)
         got_state = (qs.get('state') or [None])[0]
+        got_csrf = '-'.join((got_state or '').split('-')[1:])
         got_code = (qs.get('code') or [None])[0]
         got_error = (qs.get('error') or [None])[0]
 
         if got_error:
             server.error = f'slack oauth error: {got_error}'
             self._html(400, '<h1>Slack login failed</h1>')
-        elif got_state != server.expected_state:
+        elif got_csrf != server.expected_state:
             server.error = 'slack oauth: state mismatch'
             self._html(400, '<h1>Invalid state</h1>')
         elif not got_code:
@@ -157,14 +166,18 @@ def run_oauth_flow(open_browser=None, timeout_seconds: int = 180) -> dict:
        authorize URL; defaults to ``webbrowser.open``.
     """
     verifier, challenge = _pkce_pair()
-    state = _url_safe_random(24)
+    csrf_token = _url_safe_random(24)
 
-    server = _CallbackServer(('127.0.0.1', 0), state)
+    server = _CallbackServer(('127.0.0.1', 0), csrf_token)
     port = server.server_address[1]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
 
-    redirect_uri = f'http://127.0.0.1:{port}/callback'
+    # The hosted redirect page extracts the port from ``state`` and forwards
+    # Slack's query string to http://127.0.0.1:PORT/callback. The CSRF portion
+    # is still random and is verified by the loopback handler above.
+    state = f'{port}-{csrf_token}'
+    redirect_uri = SLACK_REDIRECT_URL
     params = {
         'client_id': SLACK_CLIENT_ID,
         'user_scope': SLACK_USER_SCOPES,
@@ -194,6 +207,7 @@ def run_oauth_flow(open_browser=None, timeout_seconds: int = 180) -> dict:
         web = WebClient()
         r = web.oauth_v2_access(
             client_id=SLACK_CLIENT_ID,
+            grant_type='authorization_code',
             code=server.code,
             redirect_uri=redirect_uri,
             code_verifier=verifier,
