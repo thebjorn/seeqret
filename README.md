@@ -284,6 +284,7 @@ cli
     load                       Save exported secrets to local vault.
     owner                      List the owner of the vault
     public-key                 Show the admin's public key.
+    pull                       Pull secrets from external systems into the vault.
     push                       Push secrets from the vault to external systems.
         vercel                 Push secrets matching FILTER to the linked Vercel project.
     receive                    Receive and import encrypted secrets from a transport.

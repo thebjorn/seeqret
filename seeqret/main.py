@@ -31,6 +31,7 @@ from .cli_group_slack import slack as slack_group, send as send_cmd, receive as 
 from .cli_group_push import push as push_group
 from .cli_group_verify import verify as verify_group
 from .cli_group_remote import remote as remote_group
+from .cli_group_pull import pull as pull_group
 import logging
 
 
@@ -980,3 +981,4 @@ cli.add_command(verify_group)
 # ---- ssh remotes ------------------------------------------------------
 
 cli.add_command(remote_group)
+cli.add_command(pull_group)

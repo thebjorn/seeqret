@@ -3,11 +3,13 @@ from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
 from seeqret.cli_group_add import key
+from seeqret.cli_group_pull import pull as pull_group
 from seeqret.cli_group_push import push as push_group
 from seeqret.cli_group_remote import remote as remote_group
 from seeqret.cli_group_verify import verify as verify_group
 from seeqret.main import init
-from seeqret.run_utils import current_user
+from seeqret.run_utils import current_user, seeqret_dir
+from seeqret.storage.sqlite_storage import SqliteStorage
 from tests.clirunner_utils import print_result
 
 
@@ -402,3 +404,170 @@ def test_push_remote_multiple_secrets():
         assert result.exit_code == 0
         assert len(mock_run.call_args_list) == 2
         assert 'Pushed 2 secret(s)' in result.output
+
+
+SERVER2 = 'deploy@server2.example.com'
+
+
+def _add_two_servers(runner):
+    _add_server(runner, set_cmd=SET_CMD_STDIN)
+    result = runner.invoke(remote_group, [
+        'add', 'other', SERVER2, '--set', SET_CMD_STDIN, '--get', GET_CMD,
+    ])
+    assert result.exit_code == 0, result.output
+
+
+def test_push_multiple_remotes():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'FOO', 'secret123')
+        _add_two_servers(runner)
+
+        ok = MagicMock(returncode=0, stdout='', stderr='')
+        with patch('subprocess.run', return_value=ok) as mock_run:
+            result = runner.invoke(
+                push_group, ['myserver,other', 'myapp:prod:FOO'],
+            )
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert [c.args[0][1] for c in mock_run.call_args_list] == [
+            SERVER, SERVER2,
+        ]
+        assert all(c.kwargs['input'] == 'secret123'
+                   for c in mock_run.call_args_list)
+        assert 'Pushed 2 secret(s) to myserver, other.' in result.output
+
+
+def test_push_multiple_remotes_unknown_alias():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'FOO', 'secret123')
+        _add_server(runner)
+
+        with patch('subprocess.run') as mock_run:
+            result = runner.invoke(
+                push_group, ['myserver,nosuch', 'myapp:prod:FOO'],
+            )
+        assert result.exit_code != 0
+        assert 'No such command' in result.output
+        mock_run.assert_not_called()
+
+
+def test_verify_multiple_remotes():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'FOO', 'secret123')
+        _add_two_servers(runner)
+
+        outputs = [
+            MagicMock(returncode=0, stdout='secret123\n', stderr=''),
+            MagicMock(returncode=0, stdout='stale', stderr=''),
+        ]
+        with patch('subprocess.run', side_effect=outputs):
+            result = runner.invoke(
+                verify_group, ['myserver,other', 'myapp:prod:FOO'],
+            )
+        assert result.exit_code == 1
+        assert 'ok       FOO' in result.output
+        assert 'MISMATCH FOO' in result.output
+
+
+def _vault_value(app, env, name):
+    with seeqret_dir():
+        secrets = SqliteStorage().fetch_secrets(app=app, env=env, key=name)
+    assert len(secrets) == 1
+    return secrets[0].value
+
+
+def test_pull_remote_stores_value_without_printing_it():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_server(runner)
+
+        ok = MagicMock(returncode=0, stdout='topsecret\n', stderr='')
+        with patch('subprocess.run', return_value=ok) as mock_run:
+            result = runner.invoke(pull_group, [
+                'myserver', 'FOO', '--app=myapp', '--env=dev',
+            ])
+
+        if result.exit_code != 0:
+            print_result(result)
+        assert result.exit_code == 0
+        assert 'topsecret' not in result.output
+        assert mock_run.call_args.args[0] == [
+            'ssh', SERVER, 'source /srv/bin/go dkpw get FOO -s',
+        ]
+        assert _vault_value('myapp', 'dev', 'FOO') == 'topsecret'
+
+
+def test_pull_remote_failure():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_server(runner)
+
+        missing = MagicMock(
+            returncode=1, stdout='',
+            stderr="Traceback (most recent call last):\nKeyError: 'NOPE'\n",
+        )
+        with patch('subprocess.run', return_value=missing):
+            result = runner.invoke(pull_group, ['myserver', 'NOPE'])
+
+        assert result.exit_code == 1
+        assert "FAILED NOPE: KeyError: 'NOPE'" in result.output
+
+
+def test_pull_remote_existing_needs_force():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_server(runner)
+        _add_secret(runner, 'FOO', 'old')
+
+        ok = MagicMock(returncode=0, stdout='new', stderr='')
+        with patch('subprocess.run', return_value=ok) as mock_run:
+            result = runner.invoke(pull_group, [
+                'myserver', 'FOO', '--app=myapp', '--env=prod',
+            ])
+            assert result.exit_code != 0
+            assert '--force' in result.output
+            mock_run.assert_not_called()
+
+            result = runner.invoke(pull_group, [
+                'myserver', 'FOO', '--app=myapp', '--env=prod', '--force',
+            ])
+            assert result.exit_code == 0
+
+        assert _vault_value('myapp', 'prod', 'FOO') == 'new'
+
+
+def test_pull_remote_without_get_cmd():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_server(runner, get_cmd=None)
+
+        with patch('subprocess.run') as mock_run:
+            result = runner.invoke(pull_group, ['myserver', 'FOO'])
+        assert result.exit_code != 0
+        assert 'no get command' in result.output
+        mock_run.assert_not_called()
+
+
+def test_pull_takes_single_remote():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_two_servers(runner)
+
+        with patch('subprocess.run') as mock_run:
+            result = runner.invoke(pull_group, ['myserver,other', 'FOO'])
+        assert result.exit_code != 0
+        assert 'single remote' in result.output
+        mock_run.assert_not_called()

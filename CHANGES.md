@@ -3,6 +3,14 @@
 API changes to seeqret. Use this to synchronize with
 [jseeqret](https://github.com/thebjorn/jseeqret).
 
+## 1.0.5
+
+- New `seeqret pull <alias> KEY...` fetches secrets from an ssh remote
+  (using its `--get` template) into the vault, without printing them.
+  `--app`/`--env` choose where they are stored; `--force` overwrites.
+- `seeqret push` and `seeqret verify` accept several comma-separated
+  remote aliases, e.g. `seeqret push web1,web2 myapp:prod:*`.
+
 ## 0.5.0
 
 - **Migration v006: `secrets.updated_at`** (unix seconds, nullable) --
