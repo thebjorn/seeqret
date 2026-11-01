@@ -5,7 +5,7 @@ import seeqret
 from seeqret.main import init
 from seeqret.cli_group_add import key
 from seeqret.run_utils import seeqret_dir
-from seeqret.storage.get_secret import parse_secret_ref
+from seeqret.storage.get_secret import parse_reference
 from seeqret.storage.storage import SecretNotFound
 from tests.clirunner_utils import print_result
 
@@ -31,8 +31,8 @@ def test_is_key_error_and_index_error():
     ('::CRON_SECRET', '*', '*', ('CRON_SECRET', '*', '*')),
     (':prod:CRON_SECRET', '*', '*', ('CRON_SECRET', '*', 'prod')),
 ])
-def test_parse_secret_ref(ref, app, env, expected):
-    assert parse_secret_ref(ref, app, env) == expected
+def test_parse_reference(ref, app, env, expected):
+    assert parse_reference(ref, app, env) == expected
 
 
 @pytest.mark.parametrize('ref, app, env', [
@@ -42,9 +42,9 @@ def test_parse_secret_ref(ref, app, env, expected):
     ('yerbu:prod:CRON_SECRET', 'yerbu', '*'),   # app given twice
     ('yerbu:prod:CRON_SECRET', '*', 'prod'),    # env given twice
 ])
-def test_parse_secret_ref_rejects(ref, app, env):
+def test_parse_reference_rejects(ref, app, env):
     with pytest.raises(ValueError):
-        parse_secret_ref(ref, app, env)
+        parse_reference(ref, app, env)
 
 
 def test_get_accepts_filter_string_and_raises_secret_not_found():

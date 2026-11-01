@@ -1,7 +1,7 @@
 from .sqlite_storage import SqliteStorage
 
 
-def parse_secret_ref(key, app='*', env='*'):
+def parse_reference(key, app='*', env='*'):
     """Split an ``app:env:key`` reference into (key, app, env).
 
     A bare key is returned unchanged with the given app/env. Empty parts
@@ -31,6 +31,6 @@ def parse_secret_ref(key, app='*', env='*'):
 
 
 def get_secret(key, app='*', env='*'):
-    key, app, env = parse_secret_ref(key, app, env)
+    key, app, env = parse_reference(key, app, env)
     storage = SqliteStorage()
     return storage.fast_get_secret(key, app, env)
