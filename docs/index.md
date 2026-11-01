@@ -11,19 +11,11 @@
 (very much a work in progress)
 
 
-<!-- @import "[TOC]" {cmd="toc" depthFrom=1 depthTo=6 orderedList=false} -->
-
-<!-- code_chunk_output -->
-
-- [Seeqret: Safely transferring code secrets](#seeqret-safely-transferring-code-secrets)
-  - [Introduction](#introduction)
-    - [Prior art...](#prior-art)
-  - [Assumptions](#assumptions)
-  - [Minimum Requirements](#minimum-requirements)
-- [Use cases](#use-cases)
-- [Code](#code)
-
-<!-- /code_chunk_output -->
+- [Background](background.md): prior art
+- [Requirements](requirements.md): requirements and use cases
+- [Command reference](commands.md): the `seeqret` command line tool
+- [Filter spec](filter-strings.md): selecting secrets with `app:env:key`
+- [Python API](python-api.md): reading secrets from Python with `seeqret.get()`
 
 
 ## Introduction

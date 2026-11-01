@@ -3,6 +3,25 @@
 API changes to seeqret. Use this to synchronize with
 [jseeqret](https://github.com/thebjorn/jseeqret).
 
+## Unreleased
+
+- `seeqret.get()` returns the decrypted value instead of a `Secret`
+  object, as its docstring always said.
+- `seeqret.get()` accepts an `app:env:key` reference, like the CLI:
+  `seeqret.get('yerbu:prod:CRON_SECRET')` is the same as
+  `seeqret.get('CRON_SECRET', app='yerbu', env='prod')`. Empty parts mean
+  `*`. A malformed reference, or a reference combined with explicit
+  `app=`/`env=`, raises `ValueError`.
+- A missing secret raises `seeqret.SecretNotFound` (a `KeyError`, and an
+  `IndexError` for backward compatibility) instead of a bare
+  `IndexError: list index out of range`. The message names the
+  `app:env:key` that was looked up, the vault path, and a
+  `seeqret list` command to find the key.
+- When several secrets match (e.g. `seeqret.get('::KEY')` with KEY in
+  both prod and dev), `seeqret.get()` raises `seeqret.AmbiguousSecret`
+  (a `LookupError`) listing the matching `app:env:key`s, instead of
+  returning an arbitrary one. This matches `seeqret get` on the CLI.
+
 ## 1.0.5
 
 - New `seeqret pull <alias> KEY...` fetches secrets from an ssh remote
