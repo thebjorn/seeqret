@@ -3,7 +3,7 @@ from seeqret.storage.storage import AmbiguousSecret, SecretNotFound
 
 __all__ = ['get', 'AmbiguousSecret', 'SecretNotFound']
 
-__version__ = '1.0.5'
+__version__ = '2.0.0'
 
 
 def get(key, app='*', env='*'):
