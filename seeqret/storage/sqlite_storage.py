@@ -38,6 +38,9 @@ class SqliteStorage(Storage):
         super().__init__('sqlite')
         self.fname = fname
 
+    def storage_location(self):
+        return os.path.join(get_seeqret_dir(), self.fname)
+
     @contextmanager
     def connection(self):
         path = os.path.join(get_seeqret_dir(), self.fname)

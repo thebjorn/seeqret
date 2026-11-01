@@ -103,7 +103,9 @@ We make the following assumptions:
    - `seeqret export <user> <keys..>` export a subset of the secrets for transmission (e.g. by email) to a new developer
    - `seeqret import <keys..>` import keys received by e.g. email
 5. and a library/API to
-   - `seeqret.get(key)`: get a secret (this should be a fast O(1) operation)
+   - `seeqret.get(key)`: get a secret (this should be a fast O(1) operation).
+     `key` is a key name or an `app:env:key` reference, e.g.
+     `seeqret.get('yerbu:prod:CRON_SECRET')`.
 5. the secrets should be easy to update[^1].
 6. it should be possible to backup the secrets.
 7. _(bonus)_: the secrets should be easy to rotate[^2].
