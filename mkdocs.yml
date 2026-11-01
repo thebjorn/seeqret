@@ -5,4 +5,5 @@ nav:
   - Requirements: requirements.md
   - Command reference: commands.md
   - Filter spec: filter-strings.md
+  - Python API: python-api.md
   - References: references.md

@@ -47,9 +47,28 @@ default. Pass `--force` to overwrite the existing value in place:
 $❱ seeqret add key NAME "NEW_VALUE" --app myapp --env dev --force
 ```
 
-## `seeqret list`
+## `seeqret list [FILTERSPEC]`
 
-List the contents of the vault.
+List the contents of the vault, optionally only the secrets matching
+FILTERSPEC (see [Filter spec](filter-strings.md)).
+
+```bash
+$❱ seeqret list myapp:prod:
+$❱ seeqret list ":dev:POSTGRES_*" --env     # .env file format
+```
+
+`-f FILTERSPEC` is still accepted for backward compatibility.
+
+## `seeqret get FILTER`
+
+Print the value of a single secret.
+
+```bash
+$❱ seeqret get myapp:prod:DB_PASSWORD
+```
+
+Fails if FILTER matches no secret, or more than one. From Python use
+`seeqret.get()` instead (see [Python API](python-api.md)).
 
 ## `seeqret add user`
 
@@ -109,14 +128,10 @@ $❱ seeqret export --to all -f myapp:prod:
 combined with other `--to` values; duplicate recipients are removed.
 
 
-## `seeqret import FNAME`
-
-Import an export file. Will only work if you are the intended receipient.
-
-
 ## `seeqret load`
 
-Load exported secrets into the local vault.
+Load exported secrets into the local vault. This only works if you are the
+intended recipient.
 
 ```bash
 $❱ seeqret load -u alice -f export.json
@@ -131,6 +146,67 @@ vault, the existing value is **overwritten** with the imported one. This
 makes `seeqret load` safe to re-run when the sender ships an updated
 value for a secret you already have.
 
+
+## `seeqret remote add ALIAS USERHOST`
+
+Register a host you can push secrets to (and pull/verify from) over ssh.
+`--set` is the remote command that stores a secret, `--get` (optional) the
+one that prints it:
+
+```bash
+$❱ seeqret remote add myhost myuser@myhost.example.com \
+       --set ". /srv/venv/myvenv/bin/activate && myvault set-secret --key {key} --stdin" \
+       --get "... myvault get-secret --key {key} --stdout"
+```
+
+`{key}` and `{value}` are substituted shell-quoted, so don't quote them
+yourself. Without a `{value}` placeholder the value is piped on stdin, which
+keeps it off the remote command line.
+
+`seeqret remote list` shows the registered remotes, `seeqret remote rm ALIAS`
+removes one. Each remote becomes a sub-command of `push`, `pull` and
+`verify`.
+
+## `seeqret push TARGET [FILTERSPEC]`
+
+Copy the secrets matching FILTERSPEC to an external system. TARGET is
+`vercel` or a registered ssh remote; several remotes can be given
+comma-separated.
+
+```bash
+$❱ seeqret push myhost myapp:prod:*
+$❱ seeqret push web1,web2 myapp:prod:* --dry-run
+$❱ seeqret push vercel myapp:prod:* --target production
+```
+
+`push vercel` needs the Vercel CLI and a linked project (`vercel link`).
+Its `--target` (production, preview, development) is required, so a push
+never reaches an environment you did not name. Existing variables with the
+same name are overwritten.
+
+## `seeqret pull REMOTE KEY...`
+
+Fetch KEYs from an ssh remote (using its `--get` command) into the vault.
+Values are never printed.
+
+```bash
+$❱ seeqret pull myhost DB_PASSWORD API_TOKEN --app myapp --env prod
+```
+
+`--app`/`--env` choose where the secrets are stored (default `*`).
+Existing secrets are only overwritten with `--force`.
+
+## `seeqret verify TARGET [FILTERSPEC]`
+
+Check that an external system has the same values as the vault. Only key
+names and `ok`/`MISSING`/`MISMATCH` are printed, never values.
+
+```bash
+$❱ seeqret verify myhost myapp:prod:*
+$❱ seeqret verify vercel myapp:prod:* --target production
+```
+
+`verify vercel` defaults to `--target development`.
 
 ## `seeqret upgrade`
 
@@ -150,7 +226,7 @@ Options:
 
 Commands:
   add           Add a new secret.
-  backup        Backup the vault to an encrypted HTML file.
+  backup        Back up the vault to a password-protected HTML file.
   edit          Edit a secret or user in the vault.
   env           Read filters from env.template and export values from the...
   export        Export the vault TO a user (use `seeqret load` to import)
@@ -163,8 +239,10 @@ Commands:
   load          Save exported secrets to local vault.
   owner         List the owner of the vault
   public-key    Show the admin's public key.
+  pull          Pull secrets from external systems into the vault.
   push          Push secrets from the vault to external systems.
   receive       Receive and import encrypted secrets from a transport.
+  remote        Manage ssh remote targets for push/verify.
   rm            Remove a secret or user from the vault.
   send          Send encrypted secrets to a user via file or Slack.
   serializers   List available serializers.
@@ -173,6 +251,7 @@ Commands:
   slack         Slack-based secret exchange transport.
   upgrade       Upgrade the database to the latest version
   users         List the users in the vault
+  verify        Verify that vault secrets match external systems.
   whoami        Display the current user and their role in the vault.
 ```
 

@@ -73,8 +73,14 @@ Migrations in `seeqret/migrations/`.
 ```python
 import seeqret
 # Fetch at point of use, not in settings files
-password = seeqret.get("db_password", app="myapp", env="prod")
+password = seeqret.get("myapp:prod:db_password")
+password = seeqret.get("db_password", app="myapp", env="prod")  # same
 ```
+
+`get()` returns the decrypted value and must match exactly one secret:
+it raises `seeqret.SecretNotFound` (no match), `seeqret.AmbiguousSecret`
+(several matches) or `ValueError` (malformed `app:env:key` reference).
+See `docs/python-api.md`.
 
 ## Testing
 

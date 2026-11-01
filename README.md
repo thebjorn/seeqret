@@ -6,7 +6,7 @@
 [![codecov](https://codecov.io/gh/thebjorn/seeqret/graph/badge.svg?token=5PQOZLTSYD)](https://codecov.io/gh/thebjorn/seeqret)
 [![pypi](https://img.shields.io/pypi/v/seeqret?label=pypi%20seeqret)](https://pypi.org/project/seeqret/)
 [![downloads](https://pepy.tech/badge/seeqret)](https://pepy.tech/project/seeqret)
-[![Socket Badge](https://socket.dev/api/badge/pypi/package/seeqret/0.1.7?artifact_id=tar-gz)](https://socket.dev/pypi/package/seeqret/overview/0.1.7/tar-gz)
+[![Socket Badge](https://socket.dev/api/badge/pypi/package/seeqret/1.0.5?artifact_id=tar-gz)](https://socket.dev/pypi/package/seeqret/overview/1.0.5/tar-gz)
 <a href="https://github.com/thebjorn/seeqret"><img src="docs/github-mark/github-mark.png" width="25" height="25"></a>
 
 
@@ -24,6 +24,7 @@
 * [add a key/value pair](#addakeyvaluepair)
 * [list secrets](#listsecrets)
 * [create a .env file](#createa.envfile)
+* [use secrets from Python](#usesecretsfromPython)
 * [export a secret to another user](#exportasecrettoanotheruser)
 	* [first ask for the users personal info](#firstaskfortheuserspersonalinfo)
 	* [add the user](#addtheuser)
@@ -70,10 +71,11 @@ A cli, `seeqret`, is provided to add/remove/edit/etc. the key/value pairs.
 When transferring secrets to another developer they are first encrypted with a public/private key-pair, thus ensuring
 encryption both at rest and in transit.
 
-An api is provided for use in Python (`seeqret.get("key")`). This api can do 7000+ fetches/sec on my machine, and 
-is faster than a fixed record file format.
+An api is provided for use in Python (`seeqret.get("myapp:prod:KEY")`). This api can do 7000+ fetches/sec on my
+machine, and is faster than a fixed record file format.
 
-Please read and understand the docstring in `__init__.py` before using!
+Please read and understand the [Python API docs](https://thebjorn.github.io/seeqret/python-api/) (or the docstring
+in `__init__.py`) before using!
 
 ## <a name='Assumptions'></a>Assumptions
 We make the following assumptions:
@@ -100,16 +102,16 @@ We make the following assumptions:
 4. there should be a command line utility (`seeqret`) to
    - `seeqret add key <key> <value>`: set a secret
    - `seeqret get <key>`: get a secret
-   - `seeqret export <user> <keys..>` export a subset of the secrets for transmission (e.g. by email) to a new developer
-   - `seeqret import <keys..>` import keys received by e.g. email
+   - `seeqret export --to <user>`: export a subset of the secrets for transmission (e.g. by email) to a new developer
+   - `seeqret load`: import secrets received by e.g. email
 5. and a library/API to
    - `seeqret.get(key)`: get a secret (this should be a fast O(1) operation).
      `key` is a key name or an `app:env:key` reference, e.g.
      `seeqret.get('yerbu:prod:CRON_SECRET')`.
-5. the secrets should be easy to update[^1].
-6. it should be possible to backup the secrets.
-7. _(bonus)_: the secrets should be easy to rotate[^2].
-8. _(bonus)_: the secrets should be auditable[^4].
+6. the secrets should be easy to update[^1].
+7. it should be possible to backup the secrets.
+8. _(bonus)_: the secrets should be easy to rotate[^2].
+9. _(bonus)_: the secrets should be auditable[^4].
 
 ## <a name='Usecases'></a>Use cases
 
@@ -152,7 +154,7 @@ seeqret add key KEY secret --app=myapp --env=dev
 List all dev secrets that start with `POSTGRES_`:
 
 ```bash
-seeqret list -f :dev:POSTGRES_*
+seeqret list ":dev:POSTGRES_*"
 ```
 
 See the filter docs for more info (https://thebjorn.github.io/seeqret/filter-strings/).
@@ -171,6 +173,23 @@ Created .env file with 1 secrets
 ❱ cat .env                                                                        
 FOO="bar"
 ```
+
+## <a name='usesecretsfromPython'></a>use secrets from Python
+
+```python
+import seeqret
+
+cn = mydb.connect(..., password=seeqret.get('myapp:prod:DB_PASSWORD'))
+```
+
+`seeqret.get()` takes the same `app:env:key` form as `seeqret get` on the
+command line (or `seeqret.get('DB_PASSWORD', app='myapp', env='prod')`) and
+returns the decrypted value. It must match exactly one secret, otherwise it
+raises `seeqret.SecretNotFound` or `seeqret.AmbiguousSecret` with a message
+that says what was looked up. Call it where the secret is used, not in a
+settings file, to keep secrets out of tracebacks and logs.
+
+See the [Python API docs](https://thebjorn.github.io/seeqret/python-api/).
 
 ## <a name='exportasecrettoanotheruser'></a>export a secret to another user
 
@@ -251,7 +270,7 @@ The other user can load this file with
 
 ### <a name='shortcutfortransferringsecrets'></a>shortcut for transferring secrets
 
-There `command` serializer makes it convenient to send a "few" secrets e.g. in chat:
+The `command` serializer makes it convenient to send a "few" secrets e.g. in chat:
 
 ```bash
 ❱ seeqret export --to bjorn -f :dev:FOO -s command                                     
@@ -272,7 +291,7 @@ cli
         key                    Add a new NAME -> VALUE mapping.
         text                   Add a new multi-line secret with key NAME, eg recovery codes.
         user                   Add a new user to the vault from a public key.
-    backup                     Backup the vault to an encrypted HTML file.
+    backup                     Back up the vault to a password-protected HTML file.
     edit                       Edit a secret or user in the vault.
         value                  Update secrets matching FILTER to the new VALUE.
     env                        Read filters from env.template and export values from the vault to an .env file.
@@ -290,8 +309,13 @@ cli
     push                       Push secrets from the vault to external systems.
         vercel                 Push secrets matching FILTER to the linked Vercel project.
     receive                    Receive and import encrypted secrets from a transport.
+    remote                     Manage ssh remote targets for push/verify.
+        add                    Add (or update) an ssh remote named ALIAS at USERHOST.
+        list                   List the registered ssh remotes.
+        rm                     Remove the ssh remote named ALIAS.
     rm                         Remove a secret or user from the vault.
         key                    Remove a secret from the vault specified by FILTER.
+        user                   Remove the user USERNAME from the vault.
     send                       Send encrypted secrets to a user via file or Slack.
     serializers                List available serializers.
     server                     Server commands.
@@ -305,8 +329,13 @@ cli
         status                 Show Slack login / channel / last-seen state.
     upgrade                    Upgrade the database to the latest version
     users                      List the users in the vault
+    verify                     Verify that vault secrets match external systems.
+        vercel                 Verify secrets matching FILTER against the linked Vercel project.
     whoami                     Display the current user and their role in the vault.
 ```
+
+ssh remotes added with `seeqret remote add` also show up as sub-commands of
+`pull`, `push` and `verify`.
 
 To get information on any command add the `-h` flag, e.g.:
 

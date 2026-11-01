@@ -5,12 +5,21 @@ format:
 
     <app-spec>:<env-spec>:<name-spec>
 
-Each part (between colons) is required and uses glob syntax.
+Each part uses glob syntax. Parts can be left out:
+
+| Filter-spec      | Means            |
+|------------------|------------------|
+| `NAME`           | `*:*:NAME`       |
+| `APP:ENV`        | `APP:ENV:*`      |
+| `APP:ENV:NAME`   | `APP:ENV:NAME`   |
+
+An empty part means `*`, i.e. `foo:*:bar` can be written as `foo::bar`.
 
 Colon is not an allowed character in app/env/name values.
 
-`*` values can usually be omitted, i.e. `foo:*:bar` can be written as
-`foo::bar`.
+Commands that act on a single secret (`seeqret get`, and `seeqret.get()` in
+Python, see [Python API](python-api.md)) fail when the filter-spec matches
+more than one secret.
 
 ## Examples
 
