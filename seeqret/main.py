@@ -460,10 +460,11 @@ def env(ctx):
             click.echo("Examples: @seeqret>=0.3  @seeqret>0.2.2  @seeqret==1.0")
             ctx.exit(1)
 
-    # Parse filter lines, supporting rename and constant syntax
+    # Parse filter lines, supporting rename and constant syntax. Each entry
+    # keeps its line number and text so duplicates can be traced back.
     filters = []
     constants = []
-    for line in lines:
+    for lineno, line in enumerate(lines, 1):
         stripped = line.strip()
         if not stripped or stripped.startswith('#') or stripped.startswith('@'):
             continue
@@ -473,48 +474,50 @@ def env(ctx):
                 # Quoted value is always a constant, even if it contains
                 # colons (e.g. URL="http://localhost:5176"). The quotes are
                 # stripped since the serializer adds its own.
-                constants.append((output_name, rhs[1:-1]))
+                constants.append((lineno, stripped, output_name, rhs[1:-1]))
             elif ':' in rhs:
                 # Rename syntax: OUTPUT_NAME=app:env:key
-                filters.append((output_name, FilterSpec(rhs)))
+                filters.append((lineno, stripped, output_name, FilterSpec(rhs)))
             else:
                 # Constant value: NAME=value
-                constants.append((output_name, rhs))
+                constants.append((lineno, stripped, output_name, rhs))
         else:
-            filters.append((None, FilterSpec(stripped)))
+            filters.append((lineno, stripped, None, FilterSpec(stripped)))
 
     envserializer = SERIALIZERS['env']()
     curdir = os.getcwd()
     with seeqret_dir():
         storage = SqliteStorage()
 
-        errors = 0
         secrets = []
-        keys = set()
-        for output_name, fspec in filters:
+        # output key -> [(lineno, template line, where the value came from)]
+        sources = {}
+        for lineno, template_line, output_name, fspec in filters:
             for secret in storage.fetch_secrets(**fspec.to_filterdict()):
+                origin = f'{secret.app}:{secret.env}:{secret.key}'
                 if output_name:
                     secret.key = output_name
-                if secret.key not in keys:
+                if secret.key not in sources:
                     secrets.append(secret)
-                    keys.add(secret.key)
-                else:
-                    click.secho(f"Duplicate key: {secret.key}", fg='red')
-                    errors += 1
+                    sources[secret.key] = []
+                sources[secret.key].append((lineno, template_line, origin))
+
         # Add constant values
-        for name, value in constants:
-            if name not in keys:
+        for lineno, template_line, name, value in constants:
+            if name not in sources:
                 secrets.append(Secret(
                     app='*', env='*', key=name,
                     plaintext_value=value
                 ))
-                keys.add(name)
-            else:
-                click.secho(f"Duplicate key: {name}", fg='red')
-                errors += 1
+                sources[name] = []
+            sources[name].append((lineno, template_line, 'constant value'))
 
-        if errors:
-            click.secho(f"\nFound {errors} duplicate keys (not creating .env file)", bg='red', fg='bright_yellow')  # noqa
+        duplicates = {
+            key: key_sources for key, key_sources in sources.items()
+            if len(key_sources) > 1
+        }
+        if duplicates:
+            report_env_duplicates(duplicates)
             return
 
         # as_table('app,env,key,value,type', secrets)
@@ -530,6 +533,34 @@ def env(ctx):
         with open(os.path.join(curdir, '.env'), 'w') as f:
             f.write(res)
         click.secho(f"\nCreated .env file with {len(secrets)} secrets", fg='green')
+
+
+def report_env_duplicates(duplicates):
+    """Print each duplicated .env key with the env.template lines and vault
+       secrets (or constants) that produced it.
+
+       `duplicates` maps output key -> [(lineno, template line, origin)].
+    """
+    for key, key_sources in duplicates.items():
+        click.secho(f"Duplicate key: {key}", fg='red')
+        width = max(len(template_line) for _, template_line, _ in key_sources)
+        for lineno, template_line, origin in key_sources:
+            click.echo(
+                f"    env.template:{lineno}  "
+                f"{template_line.ljust(width)}  ->  {origin}"
+            )
+
+    count = len(duplicates)
+    plural = 'key' if count == 1 else 'keys'
+    click.secho(
+        f"\nFound {count} duplicate {plural} in env.template "
+        f"(not creating .env file)",
+        bg='red', fg='bright_yellow'
+    )
+    click.echo(
+        "Narrow the filters (e.g. app:env:KEY), or give one of them "
+        "a different name with NAME=app:env:KEY."
+    )
 
 
 def parse_env_line(line: str) -> tuple[str, str] | None:

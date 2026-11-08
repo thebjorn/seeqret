@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 from click.testing import CliRunner
@@ -345,3 +346,48 @@ def test_env_constant_duplicate():
             f.write('FOO=constant\n')
         result = runner.invoke(env)
         assert 'Duplicate key: FOO' in result.output
+        # Both sources are reported with their env.template line numbers
+        assert 'env.template:1' in result.output
+        assert 'myapp:dev:FOO' in result.output
+        assert 'env.template:2' in result.output
+        assert 'constant value' in result.output
+        assert 'Found 1 duplicate key in env.template' in result.output
+
+
+def test_env_duplicate_from_glob_reports_each_match():
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        result = runner.invoke(init, [
+            '.',
+            '--user=' + current_user(),
+            '--email=test@example.com',
+        ])
+        if result.exit_code != 0: print_result(result)
+        assert result.exit_code == 0
+
+        for app in ('app1', 'app2'):
+            result = runner.invoke(key, [
+                'TOKEN', f'value-{app}',
+                f'--app={app}',
+                '--env=dev'
+            ])
+            assert result.exit_code == 0
+
+        # One template line matches TOKEN in two apps
+        with open('env.template', 'w') as f:
+            f.write('# comment\n')
+            f.write(':dev:TOKEN\n')
+        result = runner.invoke(env)
+        if result.exit_code != 0: print_result(result)
+
+        assert 'Duplicate key: TOKEN' in result.output
+        assert re.search(
+            r'env\.template:2\s+:dev:TOKEN\s+->\s+app1:dev:TOKEN',
+            result.output
+        )
+        assert re.search(
+            r'env\.template:2\s+:dev:TOKEN\s+->\s+app2:dev:TOKEN',
+            result.output
+        )
+        assert 'not creating .env file' in result.output
+        assert not os.path.exists('.env')
