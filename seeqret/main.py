@@ -518,7 +518,7 @@ def env(ctx):
         }
         if duplicates:
             report_env_duplicates(duplicates)
-            return
+            ctx.exit(1)
 
         # as_table('app,env,key,value,type', secrets)
         res = envserializer.dumps(secrets, False)

@@ -345,6 +345,7 @@ def test_env_constant_duplicate():
             f.write(':dev:FOO\n')
             f.write('FOO=constant\n')
         result = runner.invoke(env)
+        assert result.exit_code == 1
         assert 'Duplicate key: FOO' in result.output
         # Both sources are reported with their env.template line numbers
         assert 'env.template:1' in result.output
@@ -378,8 +379,8 @@ def test_env_duplicate_from_glob_reports_each_match():
             f.write('# comment\n')
             f.write(':dev:TOKEN\n')
         result = runner.invoke(env)
-        if result.exit_code != 0: print_result(result)
 
+        assert result.exit_code == 1
         assert 'Duplicate key: TOKEN' in result.output
         assert re.search(
             r'env\.template:2\s+:dev:TOKEN\s+->\s+app1:dev:TOKEN',
