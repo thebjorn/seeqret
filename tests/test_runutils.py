@@ -47,3 +47,21 @@ def test_seeqret_dir():
 def test_is_initialized():
     assert is_initialized() in [True, False]
 
+
+def test_list_without_vault_gives_clean_error(tmp_path, monkeypatch):
+    missing = tmp_path / 'no-vault-here'
+    monkeypatch.setenv('SEEQRET', str(missing))
+    result = CliRunner().invoke(cli, ['list'])
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit)  # no traceback
+    assert f'No seeqret vault found at {missing}' in result.output
+    assert 'seeqret init' in result.output
+
+
+def test_list_without_seeqret_env_gives_clean_error(monkeypatch):
+    monkeypatch.delenv('SEEQRET', raising=False)
+    monkeypatch.setenv('CI', 'true')  # SEEQRET is required, on any platform
+    result = CliRunner().invoke(cli, ['list'])
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit)
+    assert 'SEEQRET environment variable is not set' in result.output

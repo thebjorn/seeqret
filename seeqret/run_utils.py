@@ -18,8 +18,20 @@ def cd(path):
         os.chdir(old_dir)
 
 
+class VaultNotFound(click.ClickException):
+    """There is no vault where seeqret looks for one.
+    """
+
+
 def get_seeqret_dir():
     if sys.platform == 'win32' or 'CI' in os.environ or 'SEEQRET' in os.environ:
+        if 'SEEQRET' not in os.environ:
+            raise VaultNotFound(
+                'The SEEQRET environment variable is not set, so seeqret '
+                'does not know where your vault is.\n'
+                'Create a vault with `seeqret init DIR` (it sets SEEQRET), '
+                'or set SEEQRET to the directory of an existing vault.'
+            )
         return os.environ['SEEQRET']
     else:
         return '/srv/.seeqret'
@@ -38,8 +50,23 @@ def is_initialized():
 
 @contextmanager
 def seeqret_dir():
+    sdir = get_seeqret_dir()
+    if not os.path.isdir(sdir):
+        if 'SEEQRET' in os.environ:
+            hint = (
+                'The SEEQRET environment variable points there. Set it to '
+                'the directory of an existing vault, or create a vault with '
+                '`seeqret init DIR`.'
+            )
+        else:
+            hint = (
+                'Create a server vault there with `seeqret server init`, or '
+                'set the SEEQRET environment variable to the directory of '
+                'an existing vault.'
+            )
+        raise VaultNotFound(f'No seeqret vault found at {sdir}\n{hint}')
     old_dir = os.getcwd()
-    os.chdir(get_seeqret_dir())
+    os.chdir(sdir)
     try:
         yield
     finally:
