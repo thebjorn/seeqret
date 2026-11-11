@@ -5,6 +5,16 @@ API changes to seeqret. Use this to synchronize with
 
 ## Unreleased
 
+## 2.0.4
+
+- `seeqret export users -s command` prints one
+  `seeqret load -u<owner> -scommand -vusers:1:<ciphertext>` line per user
+  instead of a JSON file. The ciphertext is a base64 NaCl Box (owner to
+  recipient) over one user's JSON object. `load` recognises the
+  `users:` prefix. `-s` accepts `json-crypt` (default) and `command`.
+
+## 2.0.3
+
 - New `seeqret export users --to USER` exports the vault's users to USER,
   and `seeqret load -u SENDER -f FILE` imports them, skipping users that
   already exist (with a warning if the public key differs). The file is
@@ -14,15 +24,27 @@ API changes to seeqret. Use this to synchronize with
   list `[{"username", "email", "pubkey", "name"}, ...]` (all users except
   the recipient). `load` tells it apart from a secrets export by
   `kind == "users"`.
-- `seeqret export users -s command` prints one
-  `seeqret load -u<owner> -scommand -vusers:1:<ciphertext>` line per user
-  instead of a JSON file. The ciphertext is a base64 NaCl Box (owner to
-  recipient) over one user's JSON object. `load` recognises the
-  `users:` prefix. `-s` accepts `json-crypt` (default) and `command`.
 - `seeqret export` is now a command group (`seeqret export --to ...`
   works as before).
 - `seeqret load -f FILE` now reads FILE. It used to parse the file name as
   the export and failed.
+
+## 2.0.2
+
+- A missing vault gives a clear error instead of a traceback: the vault
+  commands raise `VaultNotFound` (a `ClickException`) when the vault
+  directory does not exist or `SEEQRET` is required but unset, and the
+  message says how to create or point to a vault.
+
+## 2.0.1
+
+- `seeqret env` exits 1 when `env.template` produces duplicate keys (it
+  refused to write `.env` but exited 0), like jseeqret env.
+- The duplicate-key error lists, per key, the `env.template` line numbers
+  and the `app:env:key` (or constant) that produced it.
+
+## 2.0.0
+
 - `seeqret.get()` returns the decrypted value instead of a `Secret`
   object, as its docstring always said.
 - `seeqret.get()` accepts an `app:env:key` reference, like the CLI:
