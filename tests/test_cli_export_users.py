@@ -147,3 +147,53 @@ def test_load_secrets_from_file(monkeypatch):
         storage = SqliteStorage(os.path.join(bob_vault, 'seeqrets.db'))
         [secret] = storage.fetch_secrets(app='app', env='prod', key='K')
         assert secret.value == 'v'
+
+
+def _run_load_line(runner, line):
+    """Run a pasted `seeqret load ...` LINE through the load command."""
+    import shlex
+    args = shlex.split(line)
+    assert args[:2] == ['seeqret', 'load']
+    return runner.invoke(load, args[2:])
+
+
+def test_export_users_command_round_trip(monkeypatch):
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        alice_vault, bob_vault = _vaults(runner, monkeypatch)
+
+        monkeypatch.setenv('SEEQRET', alice_vault)
+        result = _ok(runner.invoke(
+            export, ['users', '--to', 'bob', '-s', 'command']))
+        lines = result.output.strip().splitlines()
+        # one line per user except the recipient: alice, carol, dave
+        assert len(lines) == 3
+        assert all(line.startswith('seeqret load -ualice@a -scommand '
+                                   '-vusers:1:') for line in lines)
+        assert 'carol@c' not in result.output
+
+        monkeypatch.setenv('SEEQRET', bob_vault)
+        outputs = [_ok(_run_load_line(runner, line)).output
+                   for line in lines]
+        assert sum('Added user: carol@c' in o for o in outputs) == 1
+        assert sum('different public key' in o for o in outputs) == 1
+
+        storage = SqliteStorage(os.path.join(bob_vault, 'seeqrets.db'))
+        assert storage.fetch_user('carol@c').name == 'Carol Ø'
+        assert storage.fetch_user('dave@d').pubkey == CAROL_PUBKEY
+
+        # a line loaded with the wrong sender is rejected
+        result = _run_load_line(
+            runner, lines[0].replace('-ualice@a', '-udave@d'))
+        assert result.exit_code == 1
+        assert 'Could not decrypt the users export' in result.output
+
+
+def test_export_users_rejects_other_serializers(monkeypatch):
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        alice_vault, _ = _vaults(runner, monkeypatch)
+        monkeypatch.setenv('SEEQRET', alice_vault)
+        result = runner.invoke(export, ['users', '--to', 'bob', '-s', 'env'])
+        assert result.exit_code == 2
+        assert "'env' is not one of" in result.output

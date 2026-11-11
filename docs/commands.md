@@ -147,6 +147,15 @@ a different public key than in the export, `load` prints a warning and
 keeps the existing key. `--to` accepts the same values as
 `seeqret export --to` (including `all`); `-o` needs a single recipient.
 
+To send the users over chat instead of as a file, use `-s command`. It
+prints one `seeqret load` line per user for `bob` to paste into a
+terminal:
+```bash
+$❱ seeqret export users --to bob -s command
+seeqret load -ualice@a -scommand -vusers:1:Zm9v...
+seeqret load -ualice@a -scommand -vusers:1:YmFy...
+```
+
 
 ## `seeqret load`
 

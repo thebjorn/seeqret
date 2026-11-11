@@ -10,7 +10,7 @@ from . import __version__
 from .storage.sqlite_storage import SqliteStorage
 from .seeqret_transfer import (
     export_secrets, import_secrets, resolve_recipients,
-    export_users, import_users, is_users_export,
+    export_users, import_users, is_users_export, USERS_SERIALIZERS,
 )
 from .seeqret_init import secrets_init, upgrade_db
 from .seeqret_add import add_user
@@ -804,20 +804,28 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
               help='User(s) to export to (can be used multiple times). '
                    'Use a username, "self" for the vault owner, or "all" '
                    'for every other known user.')
+@click.option('-s', '--serializer', default='json-crypt', show_default=True,
+              type=click.Choice(USERS_SERIALIZERS),
+              help='json-crypt: one JSON file. command: one `seeqret load` '
+                   'line per user, to paste into a terminal.')
 @click.option('-o', '--out', default=None,
               help='Output file (default: stdout). Only with one recipient.')
-def export_users_cmd(ctx, to, out):
+def export_users_cmd(ctx, to, serializer, out):
     """Export the vault's users TO a user (use `seeqret load` to import).
 
        The user list (usernames, emails, public keys) is encrypted to the
        recipient and authenticated with the owner's key, so the recipient
        can trust the public keys they import.
 
-       Example:
+       Examples:
 
        seeqret export users --to bob -o users.json
 
        bob then runs: seeqret load -u <you> -f users.json
+
+       seeqret export users --to bob -s command
+
+       prints one `seeqret load ...` line per user for bob to paste.
     """
     curdir = (ctx.obj or {}).get('curdir') or os.getcwd()
     with seeqret_dir():
@@ -829,7 +837,11 @@ def export_users_cmd(ctx, to, out):
         if out and len(recipients) > 1:
             ctx.fail('--out can only be used with a single recipient.')
         for user in recipients:
-            res = export_users(storage, to=user)
+            res = export_users(storage, to=user, serializer=serializer)
+            if not res:
+                click.secho(f'No other users to export to {user}.',
+                            fg='yellow', err=True)
+                continue
             if out:
                 path = os.path.join(curdir, out)
                 with open(path, 'w', encoding='utf-8') as f:

@@ -14,6 +14,11 @@ API changes to seeqret. Use this to synchronize with
   list `[{"username", "email", "pubkey", "name"}, ...]` (all users except
   the recipient). `load` tells it apart from a secrets export by
   `kind == "users"`.
+- `seeqret export users -s command` prints one
+  `seeqret load -u<owner> -scommand -vusers:1:<ciphertext>` line per user
+  instead of a JSON file. The ciphertext is a base64 NaCl Box (owner to
+  recipient) over one user's JSON object. `load` recognises the
+  `users:` prefix. `-s` accepts `json-crypt` (default) and `command`.
 - `seeqret export` is now a command group (`seeqret export --to ...`
   works as before).
 - `seeqret load -f FILE` now reads FILE. It used to parse the file name as

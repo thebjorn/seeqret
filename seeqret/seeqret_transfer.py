@@ -196,18 +196,41 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
 
 USERS_EXPORT_KIND = 'users'
 USERS_EXPORT_VERSION = 1
+USERS_SERIALIZERS = ('json-crypt', 'command')
+# prefix of a ``-s command`` users value: users:<version>:<ciphertext>
+USERS_COMMAND_PREFIX = 'users:'
 
 
-def export_users(storage, *, to: str) -> str:
-    """seeqret export users --to <user>
+def _users_for(storage, receiver):
+    """Every user in the vault except RECEIVER, as plain dicts."""
+    return [
+        dict(username=u.username, email=u.email, pubkey=u.pubkey,
+             name=u.name)
+        for u in storage.fetch_users()
+        if u.username != receiver.username
+    ]
 
-       Serialize every user in the vault (except the recipient) into a
-       JSON document that only the recipient can read.  The user list is
-       encrypted as a single NaCl Box from the vault owner to the
-       recipient, so it is also authenticated: the recipient knows the
-       public keys came from the owner and were not swapped in transit.
 
-       Format (version 1)::
+def _box(value, receiver) -> str:
+    """NaCl Box VALUE (as ascii JSON) from the vault owner to RECEIVER."""
+    return asymetric_encrypt_string(
+        json.dumps(value, ensure_ascii=True, sort_keys=True),
+        load_private_key('private.key'), receiver.public_key,
+    )
+
+
+def export_users(storage, *, to: str, serializer: str = 'json-crypt') -> str:
+    """seeqret export users --to <user> [-s json-crypt|command]
+
+       Serialize every user in the vault (except the recipient) so that
+       only the recipient can read it.  Values are NaCl Boxes from the
+       vault owner to the recipient, so they are also authenticated: the
+       recipient knows the public keys came from the owner and were not
+       swapped in transit.  Each user is a JSON object with ``username``,
+       ``email``, ``pubkey`` and ``name``.
+
+       ``json-crypt`` (version 1) is one JSON document with the whole
+       list in a single Box::
 
            {
                "kind": "users",
@@ -217,41 +240,61 @@ def export_users(storage, *, to: str) -> str:
                "users": "<base64 Box(json list of users)>"
            }
 
-       Each user in the encrypted list has ``username``, ``email``,
-       ``pubkey`` and ``name``.
+       ``command`` is one line per user that the recipient pastes into a
+       terminal::
+
+           seeqret load -u<owner> -scommand -vusers:1:<base64 Box(json user)>
     """
+    if serializer not in USERS_SERIALIZERS:
+        raise click.ClickException(
+            f"Unknown users serializer: `{serializer}` "
+            f"({', '.join(USERS_SERIALIZERS)})."
+        )
     admin = storage.fetch_admin()
     receiver = admin if to == 'self' else resolve_user(storage, to)
-    users = [
-        dict(username=u.username, email=u.email, pubkey=u.pubkey,
-             name=u.name)
-        for u in storage.fetch_users()
-        if u.username != receiver.username
-    ]
-    payload = json.dumps(users, ensure_ascii=True, sort_keys=True)
+    users = _users_for(storage, receiver)
+
+    if serializer == 'command':
+        return '\n'.join(
+            f'seeqret load -u{admin.username} -scommand '
+            f'-v{USERS_COMMAND_PREFIX}{USERS_EXPORT_VERSION}:'
+            f'{_box(u, receiver)}'
+            for u in users
+        )
+
     return jason.dumps({
         'kind': USERS_EXPORT_KIND,
         'version': USERS_EXPORT_VERSION,
         'from': admin,
         'to': receiver,
-        'users': asymetric_encrypt_string(
-            payload, load_private_key('private.key'), receiver.public_key,
-        ),
+        'users': _box(users, receiver),
     })
 
 
 def is_users_export(text: str) -> bool:
-    """True if TEXT is a document produced by :func:`export_users`.
+    """True if TEXT was produced by :func:`export_users` (either format).
     """
+    if not isinstance(text, str):
+        return False
+    if text.startswith(USERS_COMMAND_PREFIX):
+        return True
     try:
         data = json.loads(text)
-    except (ValueError, TypeError):
+    except ValueError:
         return False
     return isinstance(data, dict) and data.get('kind') == USERS_EXPORT_KIND
 
 
+def _check_version(version):
+    if str(version) != str(USERS_EXPORT_VERSION):
+        raise click.ClickException(
+            f"Unsupported users export version: {version!r}."
+        )
+
+
 def import_users(sender: str, text: str):
-    """Add the users in a ``seeqret export users`` document to the vault.
+    """Add the users in a ``seeqret export users`` export (json-crypt
+       document or ``-s command`` value) to the vault.
 
        Users that already exist (same username) are skipped.  If an
        existing user's public key differs from the one in the export a
@@ -263,24 +306,27 @@ def import_users(sender: str, text: str):
     receiver = storage.fetch_admin()
     sender = resolve_user(storage, sender)
 
-    data = json.loads(text)
-    if data.get('version') != USERS_EXPORT_VERSION:
-        raise click.ClickException(
-            f"Unsupported users export version: {data.get('version')!r}."
-        )
+    if text.startswith(USERS_COMMAND_PREFIX):
+        version, _, cipher = text[len(USERS_COMMAND_PREFIX):].partition(':')
+        single = True
+    else:
+        data = json.loads(text)
+        version, cipher = data.get('version'), data.get('users')
+        single = False
+    _check_version(version)
+
     try:
-        payload = asymetric_decrypt_string(
-            data['users'], load_private_key('private.key'),
-            sender.public_key,
-        )
-    except CryptoError:
+        payload = json.loads(asymetric_decrypt_string(
+            cipher, load_private_key('private.key'), sender.public_key,
+        ))
+    except (CryptoError, ValueError, TypeError):
         raise click.ClickException(
             f"Could not decrypt the users export. It must be exported "
             f"by {sender.username} to {receiver.username}."
         )
 
     added, skipped = [], []
-    for u in json.loads(payload):
+    for u in ([payload] if single else payload):
         existing = storage.fetch_user(u['username'])
         if existing is not None:
             skipped.append(u['username'])
