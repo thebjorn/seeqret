@@ -5,6 +5,19 @@ API changes to seeqret. Use this to synchronize with
 
 ## Unreleased
 
+- New `seeqret export users --to USER` exports the vault's users to USER,
+  and `seeqret load -u SENDER -f FILE` imports them, skipping users that
+  already exist (with a warning if the public key differs). The file is
+  JSON: `{"kind": "users", "version": 1, "from": <user>, "to": <user>,
+  "users": <ciphertext>}`, where the ciphertext is a base64 NaCl Box from
+  the sender's private key to the recipient's public key over the JSON
+  list `[{"username", "email", "pubkey", "name"}, ...]` (all users except
+  the recipient). `load` tells it apart from a secrets export by
+  `kind == "users"`.
+- `seeqret export` is now a command group (`seeqret export --to ...`
+  works as before).
+- `seeqret load -f FILE` now reads FILE. It used to parse the file name as
+  the export and failed.
 - `seeqret.get()` returns the decrypted value instead of a `Secret`
   object, as its docstring always said.
 - `seeqret.get()` accepts an `app:env:key` reference, like the CLI:

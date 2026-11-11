@@ -1,12 +1,15 @@
+import json
 import os
 import sys
 from textwrap import dedent
 
 import click
+from nacl.exceptions import CryptoError
 
 from .filterspec import FilterSpec
+from .models import User, jason
 from .seeqrypt.nacl_backend import (
-    load_private_key,
+    asymetric_decrypt_string, asymetric_encrypt_string, load_private_key,
 )
 from .storage.sqlite_storage import SqliteStorage
 
@@ -189,3 +192,108 @@ def export_secrets(ctx, *, to: str, fspec: FilterSpec, serializer,
     elif echo:
         click.echo(res)
     return res
+
+
+USERS_EXPORT_KIND = 'users'
+USERS_EXPORT_VERSION = 1
+
+
+def export_users(storage, *, to: str) -> str:
+    """seeqret export users --to <user>
+
+       Serialize every user in the vault (except the recipient) into a
+       JSON document that only the recipient can read.  The user list is
+       encrypted as a single NaCl Box from the vault owner to the
+       recipient, so it is also authenticated: the recipient knows the
+       public keys came from the owner and were not swapped in transit.
+
+       Format (version 1)::
+
+           {
+               "kind": "users",
+               "version": 1,
+               "from": {username, email, pubkey, ...},
+               "to": {username, email, pubkey, ...},
+               "users": "<base64 Box(json list of users)>"
+           }
+
+       Each user in the encrypted list has ``username``, ``email``,
+       ``pubkey`` and ``name``.
+    """
+    admin = storage.fetch_admin()
+    receiver = admin if to == 'self' else resolve_user(storage, to)
+    users = [
+        dict(username=u.username, email=u.email, pubkey=u.pubkey,
+             name=u.name)
+        for u in storage.fetch_users()
+        if u.username != receiver.username
+    ]
+    payload = json.dumps(users, ensure_ascii=True, sort_keys=True)
+    return jason.dumps({
+        'kind': USERS_EXPORT_KIND,
+        'version': USERS_EXPORT_VERSION,
+        'from': admin,
+        'to': receiver,
+        'users': asymetric_encrypt_string(
+            payload, load_private_key('private.key'), receiver.public_key,
+        ),
+    })
+
+
+def is_users_export(text: str) -> bool:
+    """True if TEXT is a document produced by :func:`export_users`.
+    """
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return False
+    return isinstance(data, dict) and data.get('kind') == USERS_EXPORT_KIND
+
+
+def import_users(sender: str, text: str):
+    """Add the users in a ``seeqret export users`` document to the vault.
+
+       Users that already exist (same username) are skipped.  If an
+       existing user's public key differs from the one in the export a
+       warning is printed, but the vault is left unchanged.
+
+       Returns ``(added, skipped)`` lists of usernames.
+    """
+    storage = SqliteStorage()
+    receiver = storage.fetch_admin()
+    sender = resolve_user(storage, sender)
+
+    data = json.loads(text)
+    if data.get('version') != USERS_EXPORT_VERSION:
+        raise click.ClickException(
+            f"Unsupported users export version: {data.get('version')!r}."
+        )
+    try:
+        payload = asymetric_decrypt_string(
+            data['users'], load_private_key('private.key'),
+            sender.public_key,
+        )
+    except CryptoError:
+        raise click.ClickException(
+            f"Could not decrypt the users export. It must be exported "
+            f"by {sender.username} to {receiver.username}."
+        )
+
+    added, skipped = [], []
+    for u in json.loads(payload):
+        existing = storage.fetch_user(u['username'])
+        if existing is not None:
+            skipped.append(u['username'])
+            if existing.pubkey != u['pubkey']:
+                click.secho(
+                    f"Warning: {u['username']} already exists with a "
+                    f"different public key (kept the existing one).",
+                    fg='yellow', err=True,
+                )
+            continue
+        storage.add_user(User(
+            username=u['username'], email=u['email'], pubkey=u['pubkey'],
+            name=u.get('name'),
+        ))
+        added.append(u['username'])
+    return added, skipped

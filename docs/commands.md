@@ -127,6 +127,26 @@ $❱ seeqret export --to all -f myapp:prod:
 `all` expands to all known users except the vault owner. It can be
 combined with other `--to` values; duplicate recipients are removed.
 
+## `seeqret export users --to USER`
+
+Send the users in your vault (usernames, emails and public keys) to
+another user, e.g. to get a new team member's vault up to date:
+```bash
+$❱ seeqret export users --to bob -o users.json
+```
+
+The user list is encrypted to `bob` and authenticated with your key, so
+`bob` knows the public keys came from you. `bob` imports it with
+`seeqret load`:
+```bash
+$❱ seeqret load -u alice -f users.json
+```
+
+Users that already exist in `bob`'s vault are skipped. If one of them has
+a different public key than in the export, `load` prints a warning and
+keeps the existing key. `--to` accepts the same values as
+`seeqret export --to` (including `all`); `-o` needs a single recipient.
+
 
 ## `seeqret load`
 
@@ -137,6 +157,8 @@ intended recipient.
 $❱ seeqret load -u alice -f export.json
 $❱ seeqret load -u alice -v '<exported-value>' -s command
 ```
+
+`load` also imports a `seeqret export users` file (see above).
 
 The sender (`-u`) can be given as a bare or qualified username (see
 [Identities](#identities)).

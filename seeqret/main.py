@@ -10,6 +10,7 @@ from . import __version__
 from .storage.sqlite_storage import SqliteStorage
 from .seeqret_transfer import (
     export_secrets, import_secrets, resolve_recipients,
+    export_users, import_users, is_users_export,
 )
 from .seeqret_init import secrets_init, upgrade_db
 from .seeqret_add import add_user
@@ -727,9 +728,9 @@ def backup(ctx, out, password):
     click.echo('Open it in a browser and enter the password to decrypt.')
 
 
-@cli.command()
+@cli.group(invoke_without_command=True)
 @click.pass_context
-@click.option('--to', multiple=True, required=True,
+@click.option('--to', multiple=True,
               help='User(s) to export to (can be used multiple times). '
                    'Use a username, "self" for the vault owner, or "all" '
                    'for every other known user. Named users must exist '
@@ -765,7 +766,15 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
 
        This will export all secrets starting with FOO from app1 to every
        other user in the vault.
+
+       seeqret export users --to bob
+
+       This will export the vault's users (with their public keys) to bob.
     """
+    if ctx.invoked_subcommand is not None:
+        return
+    if not to:
+        ctx.fail("Missing option '--to'.")
     serializer_cls = SERIALIZERS.get(serializer)
     if not serializer_cls:
         ctx.fail(
@@ -787,6 +796,49 @@ def export(ctx, to, filter, serializer='json-crypt', out=None,
                     to=user, fspec=FilterSpec(fspec),
                     serializer=serializer_cls, out=out, windows=windows, linux=linux
                 )
+
+
+@export.command('users')
+@click.pass_context
+@click.option('--to', multiple=True, required=True,
+              help='User(s) to export to (can be used multiple times). '
+                   'Use a username, "self" for the vault owner, or "all" '
+                   'for every other known user.')
+@click.option('-o', '--out', default=None,
+              help='Output file (default: stdout). Only with one recipient.')
+def export_users_cmd(ctx, to, out):
+    """Export the vault's users TO a user (use `seeqret load` to import).
+
+       The user list (usernames, emails, public keys) is encrypted to the
+       recipient and authenticated with the owner's key, so the recipient
+       can trust the public keys they import.
+
+       Example:
+
+       seeqret export users --to bob -o users.json
+
+       bob then runs: seeqret load -u <you> -f users.json
+    """
+    curdir = (ctx.obj or {}).get('curdir') or os.getcwd()
+    with seeqret_dir():
+        storage = SqliteStorage()
+        recipients = resolve_recipients(storage, to)
+        if not recipients:
+            click.secho('No users to export to.', fg='yellow')
+            return
+        if out and len(recipients) > 1:
+            ctx.fail('--out can only be used with a single recipient.')
+        for user in recipients:
+            res = export_users(storage, to=user)
+            if out:
+                path = os.path.join(curdir, out)
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(res)
+                click.echo(f"Wrote users for {user} to: {path}", err=True)
+            else:
+                if len(recipients) > 1:
+                    click.echo(f"\nUsers for {user}:")
+                click.echo(res)
 
 
 @cli.command()
@@ -824,9 +876,24 @@ def load(ctx, from_user, file, value, serializer):
             f'Unknown serializer: {serializer} '
             '(use `seeqret serializers` to list available serializers).'
         )
+    curdir = (ctx.obj or {}).get('curdir') or os.getcwd()
     with seeqret_dir():
+        text = value
+        if file:
+            path = os.path.join(curdir, file)
+            with open(path, encoding='utf-8') as f:
+                text = f.read()
+        if text and is_users_export(text):
+            added, skipped = import_users(from_user, text)
+            for username in added:
+                click.secho(f'Added user: {username}', fg='green')
+            if skipped:
+                click.echo(f"Skipped existing users: {', '.join(skipped)}")
+            click.secho(f'{len(added)} added, {len(skipped)} skipped.',
+                        fg='green')
+            return
         import_secrets(
-            from_user, file, value, serializer_cls
+            from_user, None, text, serializer_cls
         )
 
 
