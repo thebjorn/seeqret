@@ -211,9 +211,10 @@ $❱ seeqret push vercel myapp:prod:* --target production
 ```
 
 `push vercel` needs the Vercel CLI and a linked project (`vercel link`).
-Its `--target` (production, preview, development) is required, so a push
-never reaches an environment you did not name. Existing variables with the
-same name are overwritten.
+Its `--target` (production, preview, development, release; aliases prod,
+dev, rc) is required, so a push never reaches an environment you did not
+name. `release` is a Vercel custom environment and must exist in the
+project. Existing variables with the same name are overwritten.
 
 ## `seeqret pull REMOTE KEY...`
 

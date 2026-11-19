@@ -106,8 +106,8 @@ def verify():
 @click.option('--target', default='development', show_default=True,
               callback=_normalize_target,
               help='Vercel environment to verify against '
-                   '(production, preview, development; prod and dev '
-                   'are accepted as aliases).')
+                   '(production, preview, development, release; prod, '
+                   'dev and rc are accepted as aliases).')
 def vercel(ctx, filterspec, filter_, target):
     """Verify secrets matching FILTER against the linked Vercel project.
 

@@ -165,6 +165,28 @@ def test_push_vercel_target_aliases():
         assert 'vercel env add DB_PASS development' in result.output
 
 
+def test_push_vercel_target_release():
+    """`release` (alias `rc`) pushes to the custom release environment."""
+    runner = CliRunner(env=dict(TESTING="TRUE"))
+    with runner.isolated_filesystem():
+        _init_vault(runner)
+        _add_secret(runner, 'DB_PASS', 'secret123')
+
+        for spelling in ('release', 'rc'):
+            result = runner.invoke(
+                push_vercel,
+                ['myapp:prod:DB_PASS', '--dry-run', '--target=' + spelling],
+            )
+            if result.exit_code != 0:
+                print_result(result)
+            assert result.exit_code == 0
+            assert 'Pushing 1 secret(s) to Vercel (release)' in result.output
+            assert 'vercel env rm DB_PASS release --yes' in result.output
+            # no git-branch positional: that is only for preview
+            assert 'vercel env add DB_PASS release  (value on stdin)' \
+                in result.output
+
+
 def test_push_vercel_target_alias_collapses_duplicate():
     """`prod,production` is one target, not two rm+add cycles."""
     runner = CliRunner(env=dict(TESTING="TRUE"))

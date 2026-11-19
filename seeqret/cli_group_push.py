@@ -14,11 +14,14 @@ import click
 from .cli_remote_ssh import PushGroup, _fetch_filtered_secrets
 
 
-VERCEL_TARGETS = ('production', 'preview', 'development')
+# ``release`` is a Vercel custom environment, not a built-in one; the
+# vercel CLI takes its name wherever it takes a built-in environment.
+VERCEL_TARGETS = ('production', 'preview', 'development', 'release')
 
 TARGET_ALIASES = {
     'dev': 'development',
     'prod': 'production',
+    'rc': 'release',
 }
 
 
@@ -86,7 +89,7 @@ def _check_vercel_linked(ctx, curdir) -> str:
 def _parse_targets(target: str) -> list[str]:
     """Split a comma-separated ``--target`` value into canonical names.
 
-       ``prod`` and ``dev`` are accepted as aliases, matching
+       ``prod``, ``dev`` and ``rc`` are accepted as aliases, matching
        ``seeqret verify vercel --target``. Expanding an alias can
        collide with a name that was also spelled out (``prod,production``
        is one target, not two), so duplicates are dropped -- pushing the
@@ -184,9 +187,9 @@ def push():
               help='filterspec (see https://thebjorn.github.io/seeqret/filter-strings/)')
 @click.option('--target', required=True,
               help='Comma-separated Vercel environments to push to '
-                   '(production, preview, development; prod and dev '
-                   'are accepted as aliases). Required, so a push '
-                   'never hits an environment you did not name.')
+                   '(production, preview, development, release; prod, '
+                   'dev and rc are accepted as aliases). Required, so '
+                   'a push never hits an environment you did not name.')
 @click.option('--dry-run', is_flag=True,
               help='Show what would be pushed without making changes.')
 def vercel(ctx, filterspec, filter_, target, dry_run):
@@ -201,6 +204,7 @@ def vercel(ctx, filterspec, filter_, target, dry_run):
         seeqret push vercel myapp:prod:* --target production
         seeqret push vercel --filter myapp:prod:DB_* --target production
         seeqret push vercel myapp:prod:* --target production,preview
+        seeqret push vercel myapp:rc:* --target rc
         seeqret push vercel myapp:prod:* --target production --dry-run
     """
     curdir = ctx.obj.get('curdir') if ctx.obj else os.getcwd()

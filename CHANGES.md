@@ -5,6 +5,9 @@ API changes to seeqret. Use this to synchronize with
 
 ## Unreleased
 
+- `seeqret push vercel` and `seeqret verify vercel` accept
+  `--target release` (alias `rc`), the Vercel custom environment.
+
 ## 2.0.4
 
 - `seeqret export users -s command` prints one
